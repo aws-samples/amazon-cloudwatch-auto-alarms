@@ -1,0 +1,111 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Automatically Create Alarms for EC2 instances
+Parameters:
+  Memory:
+    Description: Memory to allocate to Lambda function
+    Type: Number
+    Default:  128
+  EventState:
+    Description: Whether Cloudwatch event schedule is enabled or disabled
+    Type: String
+    Default: ENABLED
+
+Resources:
+  LambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: "CloudWatchEC2AutoAlarms"
+      Handler: cw_ec2_auto_alarms.lambda_handler
+      Runtime: python3.8
+      Role:  !GetAtt CloudWatchAutoAlarmLambdaRole.Arn
+      MemorySize: !Ref Memory
+      Timeout: 600
+      Environment:
+        Variables:
+          ALARM_TAG: Create_Auto_Alarms
+          CLOUDWATCH_NAMESPACE: CWAgent
+          ALARM_CPU_HIGH_THRESHOLD: 75
+          ALARM_CPU_CREDIT_BALANCE_LOW_THRESHOLD: 100
+          ALARM_MEMORY_HIGH_THRESHOLD: 75
+          ALARM_DISK_PERCENT_LOW_THRESHOLD: 20
+#          DEFAULT_ALARM_SNS_TOPIC_ARN: <Enter a valid SNS topic ARN>
+
+
+  CloudWatchAutoAlarmLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: "/"
+      Policies:
+        - PolicyName: "Lambda_Permissions"
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - cloudwatch:PutMetricData
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                  - logs:CreateExportTask
+                  - logs:DescribeLogGroups
+                  - logs:DescribeExportTasks
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - ec2:DescribeInstances
+                  - ec2:DescribeImages
+                  - ec2:CreateTags
+                  - cloudwatch:DescribeAlarms
+                  - cloudwatch:DeleteAlarms
+                  - cloudwatch:PutMetricAlarm
+                Resource: "*"
+
+  LambdaInvokePermissionCloudwatchEvents:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt
+        - LambdaFunction
+        - Arn
+      Action: 'lambda:InvokeFunction'
+      Principal: !Sub "events.amazonaws.com"
+      SourceArn: !GetAtt
+        - CloudWatchAutoAlarmCloudwatchEvent
+        - Arn
+
+  CloudWatchAutoAlarmCloudwatchEvent:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: Initiate-CloudWatchAutoAlarm
+      Description: Creates CloudWatch alarms on instance start via Lambda CloudWatchEC2AutoAlarms and deletes them on instance termination.
+      EventPattern: '
+        {
+          "source": [
+            "aws.ec2"
+          ],
+          "detail-type": [
+            "EC2 Instance State-change Notification"
+          ],
+          "detail": {
+            "state": [
+              "running",
+              "terminated"
+            ]
+          }
+        }'
+      State: !Ref EventState
+      Targets:
+        - Arn: !GetAtt LambdaFunction.Arn
+          Id: LATEST
