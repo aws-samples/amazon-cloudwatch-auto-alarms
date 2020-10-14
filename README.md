@@ -20,7 +20,7 @@ The metric alarms are created and configured based on EC2 tags which include the
 
 The tag name syntax for AWS provided metrics is:
 
-AutoAlarm-<Namespace>-<MetricName>-<ComparisonOperator>-<Period>-<Statistic>
+AutoAlarm-\<Namespace>-\<MetricName>-\<ComparisonOperator>-\<Period>-\<Statistic>
 
 Where:
 
