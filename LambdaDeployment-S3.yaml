@@ -1,0 +1,106 @@
+---
+Description: S3 Bucket for Cross-Account deployment of amazon-cloudwatch-auto-alarms Lambda function
+AWSTemplateFormatVersion: '2010-09-09'
+Parameters:
+  OrganizationID:
+    Description: Provide read access to all accounts in the organization.  Leave blank for single account S3 bucket permissions.
+    Type: String
+    Default: ""
+Conditions:
+  OrgEnabledAccess: !Not [!Equals ["", !Ref OrganizationID]]
+
+Resources:
+  LambdaDeploymentBucket:
+    Type: "AWS::S3::Bucket"
+    Properties:
+      BucketName: !Sub "amazon-cloudwatch-auto-alarms-bucket-${AWS::AccountId}"
+#      BucketEncryption:
+#        ServerSideEncryptionConfiguration:
+#          - ServerSideEncryptionByDefault:
+#              SSEAlgorithm: aws:kms
+#              KMSMasterKeyID:
+#                Fn::ImportValue: <S3 CMK KMS Encryption Key>
+      VersioningConfiguration:
+        Status: Enabled
+      #      LoggingConfiguration:
+      #        DestinationBucketName:
+      #          Fn::ImportValue: !Sub <Destination Log Bucket>
+      #        LogFilePrefix: <Logfile Prefix>
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteRule
+            Status: Enabled
+            ExpirationInDays: '90'
+
+  LambdaDeploymentBucketPolicy:
+    Type: "AWS::S3::BucketPolicy"
+    Properties:
+      Bucket: !Ref LambdaDeploymentBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Id: SSEAndSSLPolicy
+        Statement:
+          - Sid: DenyInsecureConnections
+            Effect: Deny
+            Principal: "*"
+            Action: s3:*
+            Resource:
+              - !Join
+                - ''
+                - - Fn::GetAtt: [LambdaDeploymentBucket, Arn]
+                  - '/*'
+            Condition:
+              Bool:
+                aws:SecureTransport: 'false'
+          - Sid: DenyS3PublicObjectACL
+            Effect: Deny
+            Principal: "*"
+            Action: s3:PutObjectAcl
+            Resource:
+              - !Join
+                - ''
+                - - Fn::GetAtt: [LambdaDeploymentBucket, Arn]
+                  - '/*'
+            Condition:
+              StringEqualsIgnoreCaseIfExists:
+                s3:x-amz-acl:
+                  - public-read
+                  - public-read-write
+                  - authenticated-read
+          - !If
+            - OrgEnabledAccess
+            - Sid: ''
+              Effect: Allow
+              Principal: "*"
+              Action:
+                - s3:ListBucket
+              Resource: !GetAtt LambdaDeploymentBucket.Arn
+              Condition:
+                ForAnyValue:StringLike:
+                  aws:PrincipalOrgPaths:
+                    - !Sub "${OrganizationID}/*"
+            - !Ref 'AWS::NoValue'
+
+          - !If
+            - OrgEnabledAccess
+            - Sid: ''
+              Effect: Allow
+              Principal: "*"
+              Action:
+                - s3:Get*
+              Resource:
+                - !Join
+                  - ''
+                  - - Fn::GetAtt: [LambdaDeploymentBucket, Arn]
+                    - '/*'
+              Condition:
+                ForAnyValue:StringLike:
+                  aws:PrincipalOrgPaths:
+                    - !Sub "${OrganizationID}/*"
+            - !Ref 'AWS::NoValue'
+Outputs:
+  LambdaDeploymentBucketName:
+    Value: !Ref LambdaDeploymentBucket
+    Description: "Lambda S3 deployment bucket for cross account deployment support of amazon-cloudwatch-auto-alarms lambda function"
+    Export:
+      Name: !Sub "amazon-cloudwatch-auto-alarms-bucket-name"
