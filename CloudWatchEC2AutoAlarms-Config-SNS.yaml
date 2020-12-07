@@ -1,0 +1,43 @@
+---
+Description: SNS Topic for AWS config required-tags config rule remediation - for tag Create_Auto_Alarms
+AWSTemplateFormatVersion: '2010-09-09'
+
+Resources:
+  AWSConfigRequiredTagsRemediationTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: AWS Config required-tags SNS topic for remediation of missing tag - Create_Auto_Alarms
+      TopicName: AWSConfigRequiredTagCreateAutoAlarms
+
+
+  AWSConfigRequiredTagsRemediationPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      Topics:
+        - !Ref AWSConfigRequiredTagsRemediationTopic
+      PolicyDocument:
+        Version: '2012-10-17'
+        Id: SSEAndSSLPolicy
+        Statement:
+          - Sid: Allow_Publish_Alarms
+            Effect: Allow
+            Principal:
+              Service:
+                - config.amazonaws.com
+            Action: sns:Publish
+            Resource:
+              - !Join
+                - ':'
+                - - 'arn'
+                  - !Ref AWS::Partition
+                  - 'sns'
+                  - !Ref AWS::Region
+                  - !Ref AWS::AccountId
+                  - !GetAtt AWSConfigRequiredTagsRemediationTopic.TopicName
+
+Outputs:
+  AWSConfigRequiredTagsSNSTopicArn:
+    Value: !Ref AWSConfigRequiredTagsRemediationTopic
+    Description: "SNS topic for notifications from AWS required-tags config rule for missing tag Create_Auto_Alarms"
+    Export:
+      Name: !Sub "amazon-cloudwatch-auto-alarms-required-tag-config-rule-topic"

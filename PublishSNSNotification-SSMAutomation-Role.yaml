@@ -1,0 +1,44 @@
+
+AWSTemplateFormatVersion: '2010-09-09'
+Description: "SSM Automation Role for publishing SNS notifications - AWS-PublishSNSNotification"
+Parameters:
+  SNSPublishMessageTopicARN:
+    Description: SNS Topic ARN for granting AWS Systems Manager Automation permission to publish messages - for use with AWS-PublishSNSNotification
+    Type: String
+
+Resources:
+  InstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: "SSM-PublishSNSNotification-Automation-Role"
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ssm.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: "/"
+      Policies:
+        - PolicyName:   "PublishSNSNotification-AutomationPolicy"
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: SSMPublishSNSNotification
+                Effect: Allow
+                Action: sns:Publish
+                Resource: !Ref SNSPublishMessageTopicARN
+
+
+Outputs:
+  SSMAutomationAssumeRoleArn:
+    Value: !GetAtt InstanceRole.Arn
+    Description: ARN for SSM Automation Role
+    Export:
+      Name: !Sub "carrier-ssm-domain-join-automation-role-arn-production"
+
+
+
+
