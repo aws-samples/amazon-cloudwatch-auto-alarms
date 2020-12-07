@@ -9,6 +9,9 @@ create_alarm_tag = getenv("ALARM_TAG", "Create_Auto_Alarms")
 
 cw_namespace = getenv("CLOUDWATCH_NAMESPACE", "CWAgent")
 
+append_dimensions = getenv("CLOUDWATCH_APPEND_DIMENSIONS", 'InstanceId, ImageId, InstanceType')
+append_dimensions = [dimension.strip() for dimension in append_dimensions.split(',')]
+
 alarm_cpu_high_default_threshold = getenv("ALARM_CPU_HIGH_THRESHOLD", "75")
 alarm_credit_balance_low_default_threshold = getenv("ALARM_CPU_CREDIT_BALANCE_LOW_THRESHOLD", "100")
 alarm_memory_high_default_threshold = getenv("ALARM_MEMORY_HIGH_THRESHOLD", "75")
@@ -117,7 +120,8 @@ def lambda_handler(event, context):
 
             # instance has been tagged for alarming, confirm an alarm doesn't already exist
             if instance_info:
-                process_alarm_tags(instance_id, instance_info, default_alarms, sns_topic_arn)
+                process_alarm_tags(instance_id, instance_info, default_alarms, sns_topic_arn, append_dimensions,
+                                   cw_namespace)
         elif 'source' in event and event['source'] == 'aws.ec2' and event['detail']['state'] == 'terminated':
             instance_id = event['detail']['instance-id']
             result = delete_alarms(instance_id)

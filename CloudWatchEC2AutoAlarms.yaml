@@ -1,5 +1,4 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Transform: AWS::Serverless-2016-10-31
 Description: Automatically Create Alarms for EC2 instances
 Parameters:
   Memory:
@@ -10,10 +9,13 @@ Parameters:
     Description: Whether Cloudwatch event schedule is enabled or disabled
     Type: String
     Default: ENABLED
+  S3DeploymentBucketAccountId:
+    Description: This is the Account ID where the S3 deployment bucket is deployed.
+    Type: String
 
 Resources:
   LambdaFunction:
-    Type: AWS::Serverless::Function
+    Type: AWS::Lambda::Function
     Properties:
       FunctionName: "CloudWatchEC2AutoAlarms"
       Handler: cw_ec2_auto_alarms.lambda_handler
@@ -21,6 +23,9 @@ Resources:
       Role:  !GetAtt CloudWatchAutoAlarmLambdaRole.Arn
       MemorySize: !Ref Memory
       Timeout: 600
+      Code:
+        S3Bucket: !Sub "amazon-cloudwatch-auto-alarms-bucket-${S3DeploymentBucketAccountId}"
+        S3Key: "amazon-cloudwatch-auto-alarms.zip"
       Environment:
         Variables:
           ALARM_TAG: Create_Auto_Alarms
@@ -30,7 +35,7 @@ Resources:
           ALARM_MEMORY_HIGH_THRESHOLD: 75
           ALARM_DISK_PERCENT_LOW_THRESHOLD: 20
           CLOUDWATCH_APPEND_DIMENSIONS: 'InstanceId, ImageId, InstanceType'
-          # DEFAULT_ALARM_SNS_TOPIC_ARN: arn:aws:sns:${AWS::Region}:${AWS::AccountId}:CloudWatchEC2AutoAlarmsSNSTopic
+#          DEFAULT_ALARM_SNS_TOPIC_ARN: <Enter a valid SNS topic ARN>
 
 
   CloudWatchAutoAlarmLambdaRole:
