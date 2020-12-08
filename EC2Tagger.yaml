@@ -1,0 +1,141 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Remediation Lamabda to tag EC2 instances with tags specified in environment variable.
+Parameters:
+  Memory:
+    Description: Memory to allocate to Lambda function
+    Type: Number
+    Default:  128
+
+  SNSTopicArn:
+    Description: ARN for SNS topic to subscribe the lambda function to
+    Type: String
+
+Resources:
+  LambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: "EC2Tagger"
+      Handler: index.handler
+      Runtime: python3.8
+      Role:  !GetAtt LambdaFunctionRole.Arn
+      MemorySize: !Ref Memory
+      Timeout: 600
+      Code:
+        ZipFile: |
+          import boto3
+          import logging
+          from botocore.config import Config
+          from os import getenv
+          import json
+
+          logger = logging.getLogger()
+          log_level = getenv("LOGLEVEL", "INFO")
+          level = logging.getLevelName(log_level)
+          logger.setLevel(level)
+
+          tags_string = getenv("TAGS", '[{"Key": "Create_Auto_Alarms", "Value": ""}]')
+
+          def boto3_client(resource, assumed_credentials=None):
+              config = Config(
+                  retries=dict(
+                      max_attempts=40
+                  )
+              )
+              if assumed_credentials:
+                  client = boto3.client(
+                      resource,
+                      aws_access_key_id=assumed_credentials['AccessKeyId'],
+                      aws_secret_access_key=assumed_credentials['SecretAccessKey'],
+                      aws_session_token=assumed_credentials['SessionToken'],
+                      config=config
+                  )
+              else:
+                  client = boto3.client(
+                      resource,
+                      config=config
+                  )
+
+              return client
+
+
+          def tag_ec2(instance_id, tags):
+              try:
+                  ec2_client = boto3_client('ec2')
+                  # does instance have appropriate alarm tag?
+
+                  ec2_client.create_tags(
+                      Resources=[
+                          instance_id
+                      ],
+                      Tags=tags
+                  )
+
+              except Exception as e:
+                  # If any other exceptions which we didn't expect are raised
+                  # then fail and log the exception message.
+                  logger.error('Failure tagging instance {} with tags: {} : {}'.format(instance_id, tags, e))
+                  raise
+
+          def handler(event, context):
+              logger.info('Event received: {}'.format(event))
+              if 'Records' in event:
+                for record in event['Records']:
+                  instance_id = record['Sns']['Message']
+                  logger.info('adding tags to {}'.format(instance_id))
+                  logger.info('tags string is: {}'.format(tags_string))
+                  try:
+                    tags = json.loads(tags_string)
+                  except Exception as e:
+                      logger.error('Failure parsing JSON tags environment variable string: {}: {} : {}'.format(tags_string, e))
+                      raise
+
+                  tag_ec2(instance_id, tags)
+
+      Environment:
+        Variables:
+          TAGS: '[{"Key": "Create_Auto_Alarms", "Value": ""}]'
+
+
+  LambdaFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: "/"
+      Policies:
+        - PolicyName: "Lambda_Permissions"
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ec2:CreateTags
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: "*"
+
+  SubscribeSNSLambda:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Endpoint: !GetAtt LambdaFunction.Arn
+      Protocol: lambda
+      TopicArn: !Ref SNSTopicArn
+
+  LambdaInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      Principal: sns.amazonaws.com
+      SourceArn: !Ref SNSTopicArn
+      FunctionName: !GetAtt LambdaFunction.Arn
