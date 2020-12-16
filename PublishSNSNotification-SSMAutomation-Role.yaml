@@ -37,7 +37,7 @@ Outputs:
     Value: !GetAtt InstanceRole.Arn
     Description: ARN for SSM Automation Role
     Export:
-      Name: !Sub "carrier-ssm-domain-join-automation-role-arn-production"
+      Name: !Sub "ssm-automation-role-arn-production"
 
 
 
