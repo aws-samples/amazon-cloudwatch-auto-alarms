@@ -5,6 +5,8 @@ Parameters:
     Description: Memory to allocate to Lambda function
     Type: Number
     Default:  128
+    MinValue: 128
+    MaxValue: 10240
   EventState:
     Description: Whether Cloudwatch event schedule is enabled or disabled
     Type: String
