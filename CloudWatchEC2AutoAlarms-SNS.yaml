@@ -47,4 +47,4 @@ Outputs:
     Value: !Ref CloudWatchEC2AutoAlarmsSNSTopic
     Description: "SNS topic for notifications for alarms created by the CloudWatchEC2AutoAlarms lambda function"
     Export:
-      Name: !Sub "amazon-cloudwatch-auto-alarms-sns-topic-arn"
+      Name: amazon-cloudwatch-auto-alarms-sns-topic-arn

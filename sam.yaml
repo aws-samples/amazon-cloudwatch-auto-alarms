@@ -60,19 +60,27 @@ Resources:
                   - logs:CreateLogGroup
                   - logs:CreateLogStream
                   - logs:PutLogEvents
-                  - logs:CreateExportTask
                   - logs:DescribeLogGroups
-                  - logs:DescribeExportTasks
-                Resource: "*"
+                Resource: !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:*"
+              - Effect: Allow
+                Action:
+                  - logs:PutLogEvents
+                Resource: !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:*:log-stream:*"
               - Effect: Allow
                 Action:
                   - ec2:DescribeInstances
                   - ec2:DescribeImages
+                Resource: "*"
+              - Effect: Allow
+                Action:
                   - ec2:CreateTags
+                Resource: !Sub "arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:instance/*"
+              - Effect: Allow
+                Action:
                   - cloudwatch:DescribeAlarms
                   - cloudwatch:DeleteAlarms
                   - cloudwatch:PutMetricAlarm
-                Resource: "*"
+                Resource:  !Sub "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:AutoAlarm-*"
 
   LambdaInvokePermissionCloudwatchEvents:
     Type: AWS::Lambda::Permission

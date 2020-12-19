@@ -40,4 +40,4 @@ Outputs:
     Value: !Ref AWSConfigRequiredTagsRemediationTopic
     Description: "SNS topic for notifications from AWS required-tags config rule for missing tag Create_Auto_Alarms"
     Export:
-      Name: !Sub "amazon-cloudwatch-auto-alarms-required-tag-config-rule-topic"
+      Name: amazon-cloudwatch-auto-alarms-required-tag-config-rule-topic
