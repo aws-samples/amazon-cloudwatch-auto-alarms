@@ -6,7 +6,7 @@ Parameters:
     Type: Number
     Default:  128
     MinValue: 128
-    MaxValue: 10240
+    MaxValue: 3008
   EventState:
     Description: Whether Cloudwatch event schedule is enabled or disabled
     Type: String
@@ -96,7 +96,7 @@ Resources:
         - LambdaFunction
         - Arn
       Action: 'lambda:InvokeFunction'
-      Principal: !Sub "events.amazonaws.com"
+      Principal: events.amazonaws.com
       SourceArn: !GetAtt
         - CloudWatchAutoAlarmCloudwatchEvent
         - Arn
