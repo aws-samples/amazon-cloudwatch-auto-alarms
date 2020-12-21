@@ -1,6 +1,7 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description:  This template deploys a VPC, with a single public subnet to demo the CloudWatchAutoAlarm lambda function.
-  It deploys an internet gateway, with a default route on the public subnet.
+  It deploys an internet gateway, with a default route on the public subnet.  This VPC is meant for demo purposes only.  You should create VPCs based on your network and
+  security requirements for purposes beyond a demo.
 Parameters:
   VpcCIDR:
     Description: Please enter the IP range (CIDR notation) for this VPC
