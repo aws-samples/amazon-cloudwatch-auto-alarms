@@ -76,6 +76,44 @@ After the Lambda function has been packaged and the sam-deploy.yaml file has bee
 
     aws cloudformation deploy --template-file sam-deploy.yaml --stack-name cloudwatch-ec2-auto-alarms --capabilities CAPABILITY_IAM --region <region>
 
+## Deploying in a multi-region, multi-account environment
+
+You can deploy the CloudWatchEC2AutoAlarms lambda function into a multi-account, multi-region environment by using [CloudFormation StackSets](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/what-is-cfnstacksets.html).  In order to deploy an AWS Lambda function with StackSets you must first copy the CloudFormation template to an S3 bucket that is accessible by all your accounts and regions.  One way to accomplish this is by creating an S3 bucket that grants permissions to all the accounts in your AWS organization.  You can use [this sample Amazon S3 CloudFormation template](https://github.com/aws-samples/amazon-cloudwatch-auto-alarms/blob/main/LambdaDeployment-S3.yaml) to create an S3 bucket called **amazon-cloudwatch-auto-alarms-bucket-<Your Account ID>**.  The CloudFormation template includes an S3 bucket policy that grants read permissions to an AWS Organizations ID that you specify via a template parameter.  If you leave the template parameter blank, then the policy statements that grant organization access are not included.  If you are using a single account, leave the AWS Organizations ID parameter blank.  This will still allow you to deploy the lambda function using the created S3 bucket across multiple regions in a single account.  
+
+Follow these steps to deploy the CloudWatchEC2AutoAlarms lambda function across multiple regions and accounts within your AWS Organization:
+1.	Clone the amazon-cloudwatch-auto-alarms github repository to your computer using the following command:
+
+    git clone https://github.com/aws-samples/amazon-cloudwatch-auto-alarms
+
+2.	Configure the AWS CLI with credentials for your AWS account.  This walkthrough uses temporary credentials provided by AWS Single Sign On using the **Command line or programmatic access** option.  This sets the **AWS_ACCESS_KEY_ID**, **AWS_SECRET_ACCESS_KEY**, and **AWS_SESSION_TOKEN** AWS environment variables with the appropriate credentials for use with the AWS CLI.
+3.	Create an S3 bucket that will be used to store and access the CloudWatchEC2AutoAlarms lambda function deployment package from multiple regions and accounts.  You can use [this sample S3 CloudFormation template](https://github.com/aws-samples/amazon-cloudwatch-auto-alarms/blob/main/LambdaDeployment-S3.yaml) which also configures a bucket policy to provide read access to your AWS Organization.  You can deploy this using the AWS CLI with the following command (Note:  The Organization ID is omitted in this example):
+
+    aws cloudformation create-stack --stack-name amazon-cloudwatch-auto-alarms-s3-bucket --parameters ParameterKey=OrganizationID,ParameterValue=<org id> --template-body file://LambdaDeployment-S3.yaml —region us-east-1
+
+4.	Update the environment variables in the CloudWatchEC2AutoAlarms CloudFormation template to configure default settings such as alarm thresholds.  Note that this template references the S3 bucket that you created earlier in this walkthrough.  Also note that this template references a zip file named amazon-cloudwatch-auto-alarms.zip.  
+5.	Create the **amazon-cloudwatch-auto-alarms.zip** zip file for the CloudWatchEC2AutoAlarms lambda deployment package.  On mac, you can use the zip command:
+
+    zip amazon-cloudwatch-auto-alarms.zip *.py
+
+6.	Copy the **amazon-cloudwatch-auto-alarms.zip** file to the S3 bucket you created earlier.  You can use the following command (Note: The Account ID is omitted):
+
+    aws s3 cp amazon-cloudwatch-auto-alarms.zip s3://amazon-cloudwatch-auto-alarms-bucket-<account id omitted>
+
+7.	You can now use the CloudWatchEC2AutoAlarms CloudFormation template to deploy the Lambda function across multiple regions and accounts in your AWS Organization.  This walkthrough deploys a service managed CloudFormation StackSet in the AWS Organizations master account.  You must also specify the account ID where the S3 deployment bucket was created so the same S3 bucket is used across account deployments in your organization.  Use the following command to deploy the service managed CloudFormation StackSet:
+
+    aws cloudformation create-stack-set --stack-set-name amazon-cloudwatch-auto-alarms --template-body file://CloudWatchEC2AutoAlarms.yaml --parameters ParameterKey=S3DeploymentBucketAccountId,ParameterValue=<account id omitted> --capabilities CAPABILITY_NAMED_IAM --auto-deployment Enabled=true,RetainStacksOnAccountRemoval=false --permission-model SERVICE_MANAGED --region us-east-1
+
+8.	 After the StackSet is created, you can specify which AWS accounts and regions the StackSet should be deployed.  For service managed StackSets, you specify your AWS Organization ID or AWS Organizational Unit IDs gain order to deploy the lambda function to all current and future accounts within them.   Use the following AWS CLI command to deploy the StackSet to your organization / organizational units (Note:  The organization id is omitted from the example and the us-east-1 region is used):
+
+    aws cloudformation create-stack-instances --stack-set-name amazon-cloudwatch-auto-alarms --deployment-targets OrganizationalUnitIds=<Root Organization ID omitted> --regions us-east-1 --operation-id amazon-cloudwatch-auto-alarms-deployment-1 --region us-east-1
+
+You can monitor the progress and status of the StackSet operation in the AWS CloudFormation service console.  
+
+Once the deployment is complete, the status will change from **RUNNING** to **SUCCEEDED**.
+
+
+
+
 ## Security
 
 See [CONTRIBUTING](CONTRIBUTING.md#security-issue-notifications) for more information.
