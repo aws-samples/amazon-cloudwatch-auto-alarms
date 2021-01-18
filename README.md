@@ -157,10 +157,6 @@ You can monitor the progress and status of the StackSet operation in the AWS Clo
 
 Once the deployment is complete, the status will change from **RUNNING** to **SUCCEEDED**.
 
-## Add Additional Alarms
-You can expand the set
-
-
 ## Security
 
 See [CONTRIBUTING](CONTRIBUTING.md#security-issue-notifications) for more information.
