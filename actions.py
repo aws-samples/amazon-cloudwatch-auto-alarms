@@ -9,13 +9,6 @@ log_level = getenv("LOGLEVEL", "INFO")
 level = logging.getLevelName(log_level)
 logger.setLevel(level)
 
-metric_dimensions_map = {
-    'mem_used_percent': [],
-    'disk_used_percent': ['device', 'fstype', 'path'],
-    'Memory % Committed Bytes In Use': ['objectname'],
-    'LogicalDisk % Free Space': ['objectname', 'instance']
-}
-
 
 def boto3_client(resource, assumed_credentials=None):
     config = Config(
@@ -83,7 +76,7 @@ def check_alarm_tag(instance_id, tag_key):
         raise
 
 
-def process_alarm_tags(instance_id, instance_info, default_alarms, sns_topic_arn, append_dimensions, cw_namespace):
+def process_alarm_tags(instance_id, instance_info, default_alarms, metric_dimensions_map, sns_topic_arn, append_dimensions, cw_namespace):
     instance_tags = instance_info['Tags']
     ImageId = instance_info['ImageId']
     logger.info('ImageId is: {}'.format(ImageId))
@@ -139,7 +132,8 @@ def process_alarm_tags(instance_id, instance_info, default_alarms, sns_topic_arn
                 dimension = dict()
 
                 if dimension_name == 'AutoScalingGroupName':
-                    instance_asg = next((tag['Value'] for tag in instance_tags if tag['Key'] == 'aws:autoscaling:groupName'), None)
+                    instance_asg = next(
+                        (tag['Value'] for tag in instance_tags if tag['Key'] == 'aws:autoscaling:groupName'), None)
                     if instance_asg:
                         dimension_value = instance_asg
                         dimension['Name'] = dimension_name

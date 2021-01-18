@@ -87,6 +87,15 @@ default_alarms = {
     ]
 }
 
+metric_dimensions_map = {
+    'mem_used_percent': [],
+    'disk_used_percent': ['device', 'fstype', 'path'],
+    'Memory % Committed Bytes In Use': ['objectname'],
+    'LogicalDisk % Free Space': ['objectname', 'instance']
+}
+
+
+
 '''
 Process EC2 state change notifications when instance is running (sample event):
 
@@ -120,7 +129,7 @@ def lambda_handler(event, context):
 
             # instance has been tagged for alarming, confirm an alarm doesn't already exist
             if instance_info:
-                process_alarm_tags(instance_id, instance_info, default_alarms, sns_topic_arn, append_dimensions,
+                process_alarm_tags(instance_id, instance_info, default_alarms, metric_dimensions_map, sns_topic_arn, append_dimensions,
                                    cw_namespace)
         elif 'source' in event and event['source'] == 'aws.ec2' and event['detail']['state'] == 'terminated':
             instance_id = event['detail']['instance-id']

@@ -24,7 +24,7 @@ AutoAlarm-\<Namespace>-\<MetricName>-\<ComparisonOperator>-\<Period>-\<Statistic
 
 Where:
 
-* Namespace is the CloudWatch Alarms namespace for the metric.  For AWS provided EC2 metrics, this is **EC2/AWS**.  For CloudWatch agent provided metrics, this is CWAgent by default.  
+* Namespace is the CloudWatch Alarms namespace for the metric.  For AWS provided EC2 metrics, this is **AWS/EC2**.  For CloudWatch agent provided metrics, this is CWAgent by default.  
 You can also specify a different name as described in the **Configuration** section.   
 * MetricName is the name of the metric.  For example, CPUUtilization for EC2 total CPU utilization.
 * ComparisonOperator is the comparison that should be used aligning to the ComparisonOperator parameter in the [PutMetricData](https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/API_PutMetricAlarm.html) Amazon CloudWatch API action.
@@ -34,27 +34,71 @@ You can also specify a different name as described in the **Configuration** sect
 The tag value is used to specify the threshold.
 
 For example, one of the preconfigured, default alarms that are included in the **default_alarms** dictionary is **AutoAlarm-AWS/EC2-CPUUtilization-GreaterThanThreshold-5m-Average**.
-When an instance with the tag key **Create_Auto_Alarms** enters the **running** state, the instance will be tagged with this key and the default threshold value and then the associated alarm will be created.
-Additional tags and alarms will also be created to the EC2 instance based on the platform. and alarms defined in the **default_alarms** dictionary.  Alarms will then be created based on these tag keys and values.  
+When an instance with the tag key **Create_Auto_Alarms** enters the **running** state, an alarm for the AWS provided **CPUUtilization** CloudWatch EC2 metric will be created.
+Additional tags and alarms will also be created for the EC2 instance based on the platform and alarms defined in the **default_alarms** python dictionary defined in [cw_ec2_auto_alarms.py](./cw_ec2_auto_alarms.py).  
 
 Alarms can be updated by changing the tag key or value and stopping and starting the instance.
+
+### Adding / customizing the default alarms created
+You can add or remove the alarms that are created by default.  The default alarms are defined in the **default_alarms** python dictionary in [cw_ec2_auto_alarms.py](./cw_ec2_auto_alarms.py).  The default configuration uses standard Amazon EC2 instance metrics.  
+
+In order to create an alarm, you must uniquely identify the metric that you want to alarm on.  Standard Amazon EC2 metrics include the **InstanceId** dimension to uniquely identify each standard metric associated with an EC2 instance.  If you want to add an alarm based upon a standard EC2 instance metric, then you can use the tag name syntax:
+
+AutoAlarm-AWS/EC2-<MetricName>-\<ComparisonOperator>-\<Period>-\<Statistic>
+
+This syntax doesn't include any dimension names because the InstanceId dimension is used for metrics in the **AWS/EC2** namespace.  These metrics are also standardized across all supported platforrms for EC2.  You can add any standard Amazon EC2 CloudWatch metric into the **default_alarms** dictionary under the **All** dictionary key using this tag syntax.
+
+#### Alarming on custom Amazon EC2 metrics
+Metrics captured by the Amazon CloudWatch agent are considered custom metrics.  These metrics are created in the **CWAgent** namespace by default.  Custom metrics may use any number of dimensions in order to uniquely identify a metric.  Additionally, the metric dimensions may be named differently based upon the underlying platform for the EC2 instance.
+
+For example, the metric name used to measure the disk space utilization is named **disk_used_percent** in Linux and **LogicalDisk % Free Space** in Windows.  The dimensions are also different, in Linux you must also include the **device**, **fstype**, and **path** dimensions in order to uniquely identify a disk.  In Windows, you must include the **objectname** and **instance** dimensions.
+
+Consequently, it is more difficult to automatically create alarms across different platforms for custom CloudWatch EC2 instance metrics.  This solution includes a python dictionary named **metric_dimensions_map** that identifies the required dimensions for a custom CloudWatch EC2 instance metric.  The dimensions listed in this map correlate directly to the tag name syntax for that metric.
+
+For example, the **disk_used_percent** key has the value:  **\['device', 'fstype', 'path']**.  The tag name syntax then includes the values for each dimension in the tag name.  The tag name used to create an alarm for the average **disk_used_percent** over a 5 minute period for the root partition on an Amazon Linux instance in the **CWAgent** namespace is:
+
+**AutoAlarm-CWAgent-disk_used_percent-xvda1-xfs-/-GreaterThanThreshold-5m-Average**
+
+where **xvda1** is the value for the **device** dimension, **xfs** is the value for the **fstype** dimension, and **/** is the value for the **path** dimension.
+ 
+This syntax and approach allows you to collectively support metrics with different numbers of dimensions and names.  In order to include a custom alarm in your default alarms, update the **metric_dimensions_map** to reflect the dimensions of the metric and then add the metric to the appropriate platform to the **default_alarms** dictionary in [cw_ec2_auto_alarms.py](./cw_ec2_auto_alarms.py)
+
+You should also make sure that the **CLOUDWATCH_APPEND_DIMENSIONS** environment variable is set correctly in order to ensure that dynamically added dimensions are accounted for by the solution.  The lambda function will dynamically lookup the values for these dimensions at runtime.
+
+
 
 ## Requirements
 1.  The AWS CLI is required to deploy the Lambda function using the deployment instructions.
 2.  The AWS CLI should be configured with valid credentials to create the CloudFormation stack, lambda function, and related resources.  You must also have rights to upload new objects to the S3 bucket you specify in the deployment steps.  
-3.  EC2 instances must have the CloudWatch agent installed and configured with [the basic, standard, or advanced predefined metric sets](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/create-cloudwatch-agent-configuration-file-wizard.html) in order for the created alarms to work.  Scripts named [userdata_linux_basic.sh](./userdata_linux_basic.sh), [userdata_linux_standard.sh](./userdata_linux_standard.sh), and [userdata_linux_advanced.sh](./userdata_linux_advanced.sh) are provided to install and configure the CloudWatch agent on Linux based EC2 instances with the predefined metric sets.  The lambda function is implemented to support the basic metric set.
+3.  EC2 instances must have the CloudWatch agent installed and configured with [the basic, standard, or advanced predefined metric sets](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/create-cloudwatch-agent-configuration-file-wizard.html) in order for the created alarms to work.  Scripts named [userdata_linux_basic.sh](./userdata_linux_basic.sh), [userdata_linux_standard.sh](./userdata_linux_standard.sh), and [userdata_linux_advanced.sh](./userdata_linux_advanced.sh) are provided to install and configure the CloudWatch agent on Linux based EC2 instances with the predefined metric sets.  The lambda function is implemented to support the basic metric set by default.
    
 ## Setup
 There are a number of settings that can be customized by updating the CloudWatchEC2AutoAlarms Lambda function environment variables defined in the [sam.yaml](./sam.yaml) CloudFormation template.
 The settings will only affect new alarms that you create so you should customize these values to meet your requirements before you deploy the Lambda function.
 The following list provides a description of the setting along with the environment variable name and default value:
 
+* **ALARM_TAG**: Create_Auto_Alarms
+    * The CloudWatchEC2AutoAlarms Lambda function will only create alarms for instances that are tagged with this name tag.  The default tag name is Create_Auto_Alarms.  If you want to use a different name, change the value of the ALARM_TAG environment variable.
+* **CLOUDWATCH_NAMESPACE**: CWAgent
+    * You can change the namespace where the Lambda function should look for your CloudWatch metrics. The default CloudWatch agent metrics namespace is CWAgent.  If your CloudWatch agent configuration is using a different namespace, then update the  CLOUDWATCH_NAMESPACE environment variable.
+* **CLOUDWATCH_APPEND_DIMENSIONS**: InstanceId, ImageId, InstanceType, AutoScalingGroupName 
+    * You can add EC2 metric dimensions to all metrics collected by the CloudWatch agent.  This environment variable aligns to your CloudWatch configuration setting for append_dimensions.  The default setting includes all the supported dimensions:  InstanceId, ImageId, InstanceType, AutoScalingGroupName
+* **DEFAULT_ALARM_SNS_TOPIC_ARN**:  arn:aws:sns:${AWS::Region}:${AWS::AccountId}:CloudWatchEC2AutoAlarmsSNSTopic
+    * You can define an Amazon Simple Notification Service (Amazon SNS) topic that the Lambda function will specify as the notification target for created alarms. This environment variable is commented out by default, so notifications are not sent unless you uncomment this variable and set it to an appropriate Amazon SNS ARN before deployment.  You can use this sample Amazon SNS topic CloudFormation template for the walkthrough.
+* You can update the thresholds for the default alarms by updating the following environment variables:
+    * ALARM_CPU_HIGH_THRESHOLD: 75
+    * ALARM_CPU_CREDIT_BALANCE_LOW_THRESHOLD: 100
+    * ALARM_MEMORY_HIGH_THRESHOLD: 75
+    * ALARM_DISK_PERCENT_LOW_THRESHOLD: 20
+
 * Alarm Tag:  The CloudWatchEC2AutoAlarms Lambda function will only create alarms for instances that are tagged with this specified name tag.  If you want to use a different name, enter it here:
     * ALARM_TAG: Create_Auto_Alarms
+
 * CloudWatch Namespace:  You can change the namespace where the Lambda function should look for your CloudWatch metrics.  The default CloudWatch agent metrics namespace is CWAgent.  
 If your CloudWatch agent configuration is using a different namespace that update it here:
     * CLOUDWATCH_NAMESPACE: CWAgent
- 
+
+* Additional Dimensions:   
 * Alarm Thresholds:  You can update the default thresholds used to create new CloudWatch Metric alarms by updating the following environment variables:
     * ALARM_CPU_HIGH_THRESHOLD: 75
     * ALARM_CPU_CREDIT_BALANCE_LOW_THRESHOLD: 100
@@ -111,7 +155,8 @@ You can monitor the progress and status of the StackSet operation in the AWS Clo
 
 Once the deployment is complete, the status will change from **RUNNING** to **SUCCEEDED**.
 
-
+## Add Additional Alarms
+You can expand the set
 
 
 ## Security
