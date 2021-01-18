@@ -20,16 +20,16 @@ The metric alarms are created and configured based on EC2 tags which include the
 
 The tag name syntax for AWS provided metrics is:
 
-AutoAlarm-\<Namespace>-\<MetricName>-\<ComparisonOperator>-\<Period>-\<Statistic>
+AutoAlarm-\<**Namespace**>-\<**MetricName**>-\<**ComparisonOperator**>-\<**Period**>-\<**Statistic**>
 
 Where:
 
-* Namespace is the CloudWatch Alarms namespace for the metric.  For AWS provided EC2 metrics, this is **AWS/EC2**.  For CloudWatch agent provided metrics, this is CWAgent by default.  
+* **Namespace** is the CloudWatch Alarms namespace for the metric.  For AWS provided EC2 metrics, this is **AWS/EC2**.  For CloudWatch agent provided metrics, this is CWAgent by default.  
 You can also specify a different name as described in the **Configuration** section.   
-* MetricName is the name of the metric.  For example, CPUUtilization for EC2 total CPU utilization.
-* ComparisonOperator is the comparison that should be used aligning to the ComparisonOperator parameter in the [PutMetricData](https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/API_PutMetricAlarm.html) Amazon CloudWatch API action.
-* Period is the length of time used to evaluate the metric.  You can specify an integer value followed by s for seconds, m for minutes, h for hours, d for days, and w for weeks.  Your evaluation period should observe CloudWatch evaluation period limits.
-* Statistic is the statistic for the MetricName specified, other than percentile.  
+* **MetricName** is the name of the metric.  For example, CPUUtilization for EC2 total CPU utilization.
+* **ComparisonOperator** is the comparison that should be used aligning to the ComparisonOperator parameter in the [PutMetricData](https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/API_PutMetricAlarm.html) Amazon CloudWatch API action.
+* **Period** is the length of time used to evaluate the metric.  You can specify an integer value followed by s for seconds, m for minutes, h for hours, d for days, and w for weeks.  Your evaluation period should observe CloudWatch evaluation period limits.
+* **Statistic** is the statistic for the MetricName specified, other than percentile.  
 
 The tag value is used to specify the threshold.
 
@@ -44,7 +44,7 @@ You can add or remove the alarms that are created by default.  The default alarm
 
 In order to create an alarm, you must uniquely identify the metric that you want to alarm on.  Standard Amazon EC2 metrics include the **InstanceId** dimension to uniquely identify each standard metric associated with an EC2 instance.  If you want to add an alarm based upon a standard EC2 instance metric, then you can use the tag name syntax:
 
-AutoAlarm-AWS/EC2-<MetricName>-\<ComparisonOperator>-\<Period>-\<Statistic>
+AutoAlarm-AWS/EC2-\<**MetricName**>-\<**ComparisonOperator**>-\<**Period**>-\<**Statistic**>
 
 This syntax doesn't include any dimension names because the InstanceId dimension is used for metrics in the **AWS/EC2** namespace.  These metrics are also standardized across all supported platforrms for EC2.  You can add any standard Amazon EC2 CloudWatch metric into the **default_alarms** dictionary under the **All** dictionary key using this tag syntax.
 
@@ -55,7 +55,11 @@ For example, the metric name used to measure the disk space utilization is named
 
 Consequently, it is more difficult to automatically create alarms across different platforms for custom CloudWatch EC2 instance metrics.  This solution includes a python dictionary named **metric_dimensions_map** that identifies the required dimensions for a custom CloudWatch EC2 instance metric.  The dimensions listed in this map correlate directly to the tag name syntax for that metric.
 
-For example, the **disk_used_percent** key has the value:  **\['device', 'fstype', 'path']**.  The tag name syntax then includes the values for each dimension in the tag name.  The tag name used to create an alarm for the average **disk_used_percent** over a 5 minute period for the root partition on an Amazon Linux instance in the **CWAgent** namespace is:
+For example, the **disk_used_percent** key has the value:  **\['device', 'fstype', 'path']**.  The tag name syntax then includes the values for each dimension in the tag name:
+
+AutoAlarm-\<**Namespace**>-\<**MetricName**>-\<**DimensionValues...**>-\<**ComparisonOperator**>-\<**Period**>-\<**Statistic**> 
+
+For example, the tag name used to create an alarm for the average **disk_used_percent** over a 5 minute period for the root partition on an Amazon Linux instance in the **CWAgent** namespace is:
 
 **AutoAlarm-CWAgent-disk_used_percent-xvda1-xfs-/-GreaterThanThreshold-5m-Average**
 
@@ -64,8 +68,6 @@ where **xvda1** is the value for the **device** dimension, **xfs** is the value 
 This syntax and approach allows you to collectively support metrics with different numbers of dimensions and names.  In order to include a custom alarm in your default alarms, update the **metric_dimensions_map** to reflect the dimensions of the metric and then add the metric to the appropriate platform to the **default_alarms** dictionary in [cw_ec2_auto_alarms.py](./cw_ec2_auto_alarms.py)
 
 You should also make sure that the **CLOUDWATCH_APPEND_DIMENSIONS** environment variable is set correctly in order to ensure that dynamically added dimensions are accounted for by the solution.  The lambda function will dynamically lookup the values for these dimensions at runtime.
-
-
 
 ## Requirements
 1.  The AWS CLI is required to deploy the Lambda function using the deployment instructions.
