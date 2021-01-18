@@ -1,4 +1,7 @@
-## Amazon CloudWatch Auto Alarms - Automatically create and configure CloudWatch alarms for EC2 instances
+## CloudWatchEC2AutoAlarms - Automatically create and configure CloudWatch alarms for EC2 instances
+
+![CloudWatchEC2AutoAlarms Architecture Diagram](./CloudWatchEC2AutoAlarmsArchitecture.png)
+
 The CloudWatchEC2AutoAlarms AWS Lambda function enables you to quickly and automatically create and manage CloudWatch metric alarms for EC2 instances by tagging instances using the defined syntax.  It prevents errors that may occur by manually creating alarms, reduces the time required to deploy alarms to a large number of instances, and reduces the skills gap required in order to create and manage alarms.  It can be especially useful during a large migration to AWS where many instances may be migrated with a solution such as CloudEndure.
 
 The AWS Lambda function creates the following alarms for Windows, Amazon Linux, Redhat, Ubuntu, or SUSE EC2 instances:
