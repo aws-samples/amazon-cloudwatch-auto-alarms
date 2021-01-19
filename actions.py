@@ -224,7 +224,7 @@ def convert_to_seconds(s):
 # Example:  AutoAlarm-i-00e4f327736cb077f-CPUUtilization-GreaterThanThreshold-80-5m
 def create_alarm(AlarmName, MetricName, ComparisonOperator, Period, Threshold, Statistic, Namespace, Dimensions,
                  sns_topic_arn):
-    AlarmDescription = 'Alarm created by lambda function CloudWatchEC2AutoAlarm'
+    AlarmDescription = 'Alarm created by lambda function CloudWatchAutoAlarms'
 
     try:
         Period = convert_to_seconds(Period)

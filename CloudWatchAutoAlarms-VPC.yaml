@@ -24,14 +24,14 @@ Resources:
       EnableDnsHostnames: true
       Tags:
         - Key: Name
-          Value: "CloudWatchEC2AutoAlarmDemo"
+          Value: "CloudWatchAutoAlarmsDemo"
 
   InternetGateway:
     Type: AWS::EC2::InternetGateway
     Properties:
       Tags:
         - Key: Name
-          Value: "CloudWatchEC2AutoAlarmDemo"
+          Value: "CloudWatchAutoAlarmsDemo"
 
   InternetGatewayAttachment:
     Type: AWS::EC2::VPCGatewayAttachment
@@ -48,7 +48,7 @@ Resources:
       MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
-          Value: CloudWatchEC2AutoAlarmDemo Public Subnet (AZ1)
+          Value: CloudWatchAutoAlarmsDemo Public Subnet (AZ1)
 
 
   PublicRouteTable:
@@ -57,7 +57,7 @@ Resources:
       VpcId: !Ref VPC
       Tags:
         - Key: Name
-          Value: CloudWatchEC2AutoAlarmDemo Public Routes
+          Value: CloudWatchAutoAlarmsDemo Public Routes
 
   DefaultPublicRoute:
     Type: AWS::EC2::Route

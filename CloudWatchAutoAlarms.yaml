@@ -19,7 +19,7 @@ Resources:
   LambdaFunction:
     Type: AWS::Lambda::Function
     Properties:
-      FunctionName: "CloudWatchEC2AutoAlarms"
+      FunctionName: "CloudWatchAutoAlarms"
       Handler: cw_ec2_auto_alarms.lambda_handler
       Runtime: python3.8
       Role:  !GetAtt CloudWatchAutoAlarmLambdaRole.Arn
@@ -104,8 +104,8 @@ Resources:
   CloudWatchAutoAlarmCloudwatchEvent:
     Type: AWS::Events::Rule
     Properties:
-      Name: Initiate-CloudWatchAutoAlarm
-      Description: Creates CloudWatch alarms on instance start via Lambda CloudWatchEC2AutoAlarms and deletes them on instance termination.
+      Name: Initiate-CloudWatchAutoAlarms
+      Description: Creates CloudWatch alarms on instance start via Lambda CloudWatchAutoAlarms and deletes them on instance termination.
       EventPattern: '
         {
           "source": [
