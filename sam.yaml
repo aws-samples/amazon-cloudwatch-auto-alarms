@@ -18,7 +18,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: "CloudWatchAutoAlarms"
-      Handler: cw_ec2_auto_alarms.lambda_handler
+      Handler: cw_auto_alarms.lambda_handler
       Runtime: python3.8
       Role:  !GetAtt CloudWatchAutoAlarmLambdaRole.Arn
       MemorySize: !Ref Memory
@@ -32,7 +32,7 @@ Resources:
           ALARM_MEMORY_HIGH_THRESHOLD: 75
           ALARM_DISK_PERCENT_LOW_THRESHOLD: 20
           CLOUDWATCH_APPEND_DIMENSIONS: 'InstanceId, ImageId, InstanceType'
-          # DEFAULT_ALARM_SNS_TOPIC_ARN: arn:aws:sns:${AWS::Region}:${AWS::AccountId}:CloudWatchAutoAlarmsSNSTopic
+          # DEFAULT_ALARM_SNS_TOPIC_ARN: !Sub "arn:aws:sns:${AWS::Region}:${AWS::AccountId}:CloudWatchAutoAlarmsSNSTopic"
 
 
   CloudWatchAutoAlarmLambdaRole:
