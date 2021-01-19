@@ -123,7 +123,7 @@ To deploy this lambda function, clone this repository.  Then run the following c
 
 After the Lambda function has been packaged and the sam-deploy.yaml file has been created, run the following command with **<region_name>** updated to reflect the region you wish to deploy the Lambda function:
 
-    aws cloudformation deploy --template-file sam-deploy.yaml --stack-name cloudwatch-ec2-auto-alarms --capabilities CAPABILITY_IAM --region <region>
+    aws cloudformation deploy --template-file sam-deploy.yaml --stack-name cloudwatch-auto-alarms --capabilities CAPABILITY_IAM --region <region>
 
 ## Deploying in a multi-region, multi-account environment
 
