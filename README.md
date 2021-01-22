@@ -43,34 +43,34 @@ Additional tags and alarms will also be created for the EC2 instance based on th
 Alarms can be updated by changing the tag key or value and stopping and starting the instance.
 
 ### Adding / customizing the default alarms created
-You can add or remove the alarms that are created by default.  The default alarms are defined in the **default_alarms** python dictionary in [cw_auto_alarms.py](./cw_auto_alarms.py).  The default configuration uses standard Amazon EC2 instance metrics.  
+You can add or remove alarms that are created by default.  The default alarms are defined in the **default_alarms** python dictionary in [cw_auto_alarms.py](./cw_auto_alarms.py).  
 
 In order to create an alarm, you must uniquely identify the metric that you want to alarm on.  Standard Amazon EC2 metrics include the **InstanceId** dimension to uniquely identify each standard metric associated with an EC2 instance.  If you want to add an alarm based upon a standard EC2 instance metric, then you can use the tag name syntax:
 
 AutoAlarm-AWS/EC2-\<**MetricName**>-\<**ComparisonOperator**>-\<**Period**>-\<**Statistic**>
 
-This syntax doesn't include any dimension names because the InstanceId dimension is used for metrics in the **AWS/EC2** namespace.  These metrics are also standardized across all supported platforrms for EC2.  You can add any standard Amazon EC2 CloudWatch metric into the **default_alarms** dictionary under the **All** dictionary key using this tag syntax.
+This syntax doesn't include any dimension names because the InstanceId dimension is used for metrics in the **AWS/EC2** namespace.  These AWS provided EC2 metrics are common across all platforms for EC2.  You can add any standard Amazon EC2 CloudWatch metric into the **default_alarms** dictionary under the **AWS/EC2** dictionary key using this tag syntax.
 
 #### Alarming on custom Amazon EC2 metrics
-Metrics captured by the Amazon CloudWatch agent are considered custom metrics.  These metrics are created in the **CWAgent** namespace by default.  Custom metrics may use any number of dimensions in order to uniquely identify a metric.  Additionally, the metric dimensions may be named differently based upon the underlying platform for the EC2 instance.
+Metrics captured by the Amazon CloudWatch agent are considered custom metrics.  These metrics are created in the **CWAgent** namespace by default.  Custom metrics may have any number of dimensions in order to uniquely identify a metric.  Additionally, the metric dimensions may be named differently based upon the underlying platform for the EC2 instance.
 
 For example, the metric name used to measure the disk space utilization is named **disk_used_percent** in Linux and **LogicalDisk % Free Space** in Windows.  The dimensions are also different, in Linux you must also include the **device**, **fstype**, and **path** dimensions in order to uniquely identify a disk.  In Windows, you must include the **objectname** and **instance** dimensions.
 
-Consequently, it is more difficult to automatically create alarms across different platforms for custom CloudWatch EC2 instance metrics.  This solution includes a python dictionary named **metric_dimensions_map** that identifies the required dimensions for a custom CloudWatch EC2 instance metric.  The dimensions listed in this map correlate directly to the tag name syntax for that metric.
+Consequently, it is more difficult to automatically create alarms across different platforms for custom CloudWatch EC2 instance metrics.  
 
-For example, the **disk_used_percent** key has the value:  **\['device', 'fstype', 'path']**.  The tag name syntax then includes the values for each dimension in the tag name:
+For example, the **disk_used_percent** metric for Linux has the additional dimensions:  **\'device', 'fstype', 'path'**.  For metrics with custom dimensions, you can include the dimension name and value in the tag key syntax:  
 
-AutoAlarm-\<**Namespace**>-\<**MetricName**>-\<**DimensionValues...**>-\<**ComparisonOperator**>-\<**Period**>-\<**Statistic**> 
+AutoAlarm-\<**Namespace**>-\<**MetricName**>-\<**DimensionName-DimensionValue...**>-\<**ComparisonOperator**>-\<**Period**>-\<**Statistic**> 
 
 For example, the tag name used to create an alarm for the average **disk_used_percent** over a 5 minute period for the root partition on an Amazon Linux instance in the **CWAgent** namespace is:
 
-**AutoAlarm-CWAgent-disk_used_percent-xvda1-xfs-/-GreaterThanThreshold-5m-Average**
+**AutoAlarm-CWAgent-disk_used_percent-device-xvda1-fstype-xfs-path-/-GreaterThanThreshold-5m-Average**
 
-where **xvda1** is the value for the **device** dimension, **xfs** is the value for the **fstype** dimension, and **/** is the value for the **path** dimension.
+Where the **device** dimension has a value of **xvda1**, the **fstype** dimension has a value of **xfs**, and the **path** dimension has a value of **/**.
  
-This syntax and approach allows you to collectively support metrics with different numbers of dimensions and names.  In order to include a custom alarm in your default alarms, update the **metric_dimensions_map** to reflect the dimensions of the metric and then add the metric to the appropriate platform to the **default_alarms** dictionary in [cw_auto_alarms.py](./cw_auto_alarms.py)
+This syntax and approach allows you to collectively support metrics with different numbers of dimensions and names.  Using this syntax, you can add alarms for metrics with custom dimensions to the appropriate platform in the **default_alarms** dictionary in [cw_auto_alarms.py](./cw_auto_alarms.py)
 
-You should also make sure that the **CLOUDWATCH_APPEND_DIMENSIONS** environment variable is set correctly in order to ensure that dynamically added dimensions are accounted for by the solution.  The lambda function will dynamically lookup the values for these dimensions at runtime.
+You should also make sure that the **CLOUDWATCH_APPEND_DIMENSIONS** environment variable is set correctly in order to ensure that created alarms include these dimensions.  The lambda function will dynamically lookup the values for these dimensions at runtime.
 
 ## Requirements
 1.  The AWS CLI is required to deploy the Lambda function using the deployment instructions.
