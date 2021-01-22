@@ -79,10 +79,13 @@ Resources:
                 Resource: !Sub "arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:instance/*"
               - Effect: Allow
                 Action:
-                  - cloudwatch:DescribeAlarms
                   - cloudwatch:DeleteAlarms
                   - cloudwatch:PutMetricAlarm
                 Resource:  !Sub "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:AutoAlarm-*"
+              - Effect: Allow
+                Action:
+                  - cloudwatch:DescribeAlarms
+                Resource:  !Sub "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:*"
 
   LambdaInvokePermissionCloudwatchEvents:
     Type: AWS::Lambda::Permission

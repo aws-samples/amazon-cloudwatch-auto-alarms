@@ -8,6 +8,8 @@ logger = logging.getLogger()
 log_level = getenv("LOGLEVEL", "INFO")
 level = logging.getLevelName(log_level)
 logger.setLevel(level)
+valid_comparators = ['GreaterThanOrEqualToThreshold', 'GreaterThanThreshold', 'LessThanThreshold',
+                     'LessThanOrEqualToThreshold']
 
 
 def boto3_client(resource, assumed_credentials=None):
@@ -76,7 +78,7 @@ def check_alarm_tag(instance_id, tag_key):
         raise
 
 
-def process_alarm_tags(instance_id, instance_info, default_alarms, metric_dimensions_map, sns_topic_arn, append_dimensions, cw_namespace):
+def process_alarm_tags(instance_id, instance_info, default_alarms, metric_dimensions_map, sns_topic_arn, cw_namespace):
     instance_tags = instance_info['Tags']
     ImageId = instance_info['ImageId']
     logger.info('ImageId is: {}'.format(ImageId))
@@ -88,13 +90,25 @@ def process_alarm_tags(instance_id, instance_info, default_alarms, metric_dimens
         if instance_tag['Key'].startswith('AutoAlarm'):
             custom_alarm_properties = instance_tag['Key'].split('-')
             custom_alarm_namespace = custom_alarm_properties[1]
-            if custom_alarm_namespace == 'AWS/EC2':
-                default_alarms['All'].append(instance_tag)
+            if custom_alarm_namespace.startswith('AWS/EC2'):
+                default_alarms[custom_alarm_namespace].append(instance_tag)
             elif custom_alarm_namespace == cw_namespace:
-                default_alarms[platform].append(instance_tag)
+                default_alarms[custom_alarm_namespace][platform].append(instance_tag)
 
+    # get the default dimensions for AWS/EC2
+    dimensions = list()
+    dimension_names = metric_dimensions_map.get('AWS/EC2', list())
+    for dim in dimension_names:
+        dimension_value = instance_info.get(dim, None)
+        if dimension_value:
+            dimensions.append(
+                {
+                    'Name': dim,
+                    'Value': dimension_value
+                }
+            )
     # process standard AWS/EC2 alarms across all platforms - dimensions are static here.
-    for tag in default_alarms['All']:
+    for tag in default_alarms['AWS/EC2']:
         alarm_properties = tag['Key'].split('-')
         Namespace = alarm_properties[1]
         MetricName = alarm_properties[2]
@@ -102,63 +116,72 @@ def process_alarm_tags(instance_id, instance_info, default_alarms, metric_dimens
         Period = alarm_properties[4]
         Statistic = alarm_properties[5]
 
-        # AWS/EC2 namespace dimensions only include InstanceId
-        Dimensions = [
-            {
-                'Name': 'InstanceId',
-                'Value': instance_id
-            }
-        ]
-
-        AlarmName = 'AutoAlarm-{}-{}-{}-{}-{}'.format(instance_id, MetricName, ComparisonOperator, tag['Value'],
-                                                      Period)
+        AlarmName = 'AutoAlarm-{}-{}-{}-{}-{}-{}'.format(instance_id, Namespace, MetricName, ComparisonOperator,
+                                                         tag['Value'],
+                                                         Period)
         create_alarm(AlarmName, MetricName, ComparisonOperator, Period, tag['Value'], Statistic, Namespace,
-                     Dimensions, sns_topic_arn)
+                     dimensions, sns_topic_arn)
 
-    for tag in default_alarms[platform]:
+    cw_agent_dimensions = list()
+    for dimension_name in metric_dimensions_map.get(cw_namespace, list()):
+        dimension = dict()
+
+        if dimension_name == 'AutoScalingGroupName':
+            # find out if the instance is part of an autoscaling group
+            instance_asg = next(
+                (tag['Value'] for tag in instance_tags if tag['Key'] == 'aws:autoscaling:groupName'), None)
+            if instance_asg:
+                dimension_value = instance_asg
+                dimension['Name'] = dimension_name
+                dimension['Value'] = dimension_value
+                cw_agent_dimensions.append(dimension)
+        else:
+            dimension_value = instance_info.get(dimension_name, None)
+            if dimension_value:
+                dimension['Name'] = dimension_name
+                dimension['Value'] = dimension_value
+                cw_agent_dimensions.append(dimension)
+            else:
+                logger.warning(
+                    "Dimension {} has been specified in APPEND_DIMENSIONS but the no dimension value exists for instance {}, skipping...".format(
+                        dimension_name, instance_id))
+
+    logger.debug("cwagent dimensions are {}".format(cw_agent_dimensions))
+
+    for tag in default_alarms[cw_namespace][platform]:
+        total_dimensions = list()
+        total_dimensions.extend(cw_agent_dimensions)
         alarm_properties = tag['Key'].split('-')
         Namespace = alarm_properties[1]
         MetricName = alarm_properties[2]
+        additional_dimensions = list()
 
-        # if the custom alarm is from the standard AWS/EC2 metrics then set static dimensions.
-        if Namespace == 'AWS/EC2':
-            Dimensions = [{
-                'Name': 'InstanceId',
-                'Value': instance_id
-            }]
+        for index, prop in enumerate(alarm_properties[3:], start=3):
+            if prop in valid_comparators:
+                prop_end_index = index
+                break
         else:
-            Dimensions = list()
-            for dimension_name in append_dimensions:
-                dimension = dict()
+            prop_end_index = None
 
-                if dimension_name == 'AutoScalingGroupName':
-                    instance_asg = next(
-                        (tag['Value'] for tag in instance_tags if tag['Key'] == 'aws:autoscaling:groupName'), None)
-                    if instance_asg:
-                        dimension_value = instance_asg
-                        dimension['Name'] = dimension_name
-                        dimension['Value'] = dimension_value
-                else:
-                    dimension_value = instance_info.get(dimension_name, None)
-                    dimension['Name'] = dimension_name
-                    dimension['Value'] = dimension_value
+        if prop_end_index:
+            additional_dimensions.extend(alarm_properties[3:prop_end_index])
+        else:
+            logger.error('Unable to determine the dimensions for alarm tag: {}'.format(tag))
+            raise Exception
 
-                Dimensions.append(dimension)
-
-        additional_dimensions = metric_dimensions_map.get(MetricName, None)
-
-        AlarmName = 'AutoAlarm-{}-{}'.format(instance_id, MetricName)
+        AlarmName = 'AutoAlarm-{}-{}-{}'.format(instance_id, Namespace, MetricName)
         properties_offset = 0
         if additional_dimensions:
-            for pos, dim in enumerate(additional_dimensions, 1):
-                Dimensions.append(
+            for num, dim in enumerate(additional_dimensions[::2]):
+                val = additional_dimensions[num * 2 + 1]
+                total_dimensions.append(
                     {
                         'Name': dim,
-                        'Value': alarm_properties[(pos + 2)]
+                        'Value': val
                     }
                 )
-                AlarmName = AlarmName + '-{}'.format(alarm_properties[(pos + 2)])
-                properties_offset = properties_offset + 1
+                AlarmName = AlarmName + '-{}-{}'.format(dim, val)
+                properties_offset = properties_offset + 2
 
         ComparisonOperator = alarm_properties[(properties_offset + 3)]
         Period = alarm_properties[(properties_offset + 4)]
@@ -167,7 +190,7 @@ def process_alarm_tags(instance_id, instance_info, default_alarms, metric_dimens
         AlarmName = AlarmName + '-{}-{}-{}'.format(ComparisonOperator, tag['Value'], Period)
 
         create_alarm(AlarmName, MetricName, ComparisonOperator, Period, tag['Value'], Statistic, Namespace,
-                     Dimensions, sns_topic_arn)
+                     total_dimensions, sns_topic_arn)
 
 
 def determine_platform(imageid):

@@ -1,4 +1,3 @@
-from datetime import datetime, timedelta
 import logging
 from actions import check_alarm_tag, process_alarm_tags, delete_alarms
 from os import getenv
@@ -23,7 +22,7 @@ sns_topic_arn = getenv("DEFAULT_ALARM_SNS_TOPIC_ARN", None)
 # For Redhat, the default device is xvda2, xfs, for Ubuntu, the default fstype is ext4,
 # for Amazon Linux, the default device is xvda1, xfs
 default_alarms = {
-    'All': [
+    'AWS/EC2': [
         {
             'Key': 'AutoAlarm-AWS/EC2-CPUUtilization-GreaterThanThreshold-5m-Average',
             'Value': alarm_cpu_high_default_threshold
@@ -31,70 +30,75 @@ default_alarms = {
         {
             'Key': 'AutoAlarm-AWS/EC2-CPUCreditBalance-LessThanThreshold-5m-Average',
             'Value': alarm_credit_balance_low_default_threshold
-        }],
-    'Windows': [
+        }
+    ],
+    cw_namespace: {
+        'Windows': [
 
-        {
-            'Key': 'AutoAlarm-{}-LogicalDisk % Free Space-LogicalDisk-C:-LessThanThreshold-5m-Average'.format(
-                cw_namespace),
-            'Value': alarm_disk_space_percent_free_threshold
-        },
-        {
-            'Key': 'AutoAlarm-{}-Memory % Committed Bytes In Use-Memory-GreaterThanThreshold-5m-Average'.format(
-                cw_namespace),
-            'Value': alarm_memory_high_default_threshold
-        }
-    ],
-    'Amazon Linux': [
-        {
-            'Key': 'AutoAlarm-{}-disk_used_percent-xvda1-xfs-/-GreaterThanThreshold-5m-Average'.format(cw_namespace),
-            'Value': alarm_disk_used_percent_threshold
-        },
-        {
-            'Key': 'AutoAlarm-{}-mem_used_percent-GreaterThanThreshold-5m-Average'.format(cw_namespace),
-            'Value': alarm_memory_high_default_threshold
-        }
-    ],
-    'Red Hat': [
-        {
-            'Key': 'AutoAlarm-{}-disk_used_percent-xvda2-xfs-/-GreaterThanThreshold-5m-Average'.format(cw_namespace),
-            'Value': alarm_disk_used_percent_threshold
-        },
-        {
-            'Key': 'AutoAlarm-{}-mem_used_percent-GreaterThanThreshold-5m-Average'.format(cw_namespace),
-            'Value': alarm_memory_high_default_threshold
-        }
-    ],
-    'Ubuntu': [
-        {
-            'Key': 'AutoAlarm-{}-disk_used_percent-xvda1-ext4-/-GreaterThanThreshold-5m-Average'.format(cw_namespace),
-            'Value': alarm_disk_used_percent_threshold
-        },
-        {
-            'Key': 'AutoAlarm-{}-mem_used_percent-GreaterThanThreshold-5m-Average'.format(cw_namespace),
-            'Value': alarm_memory_high_default_threshold
-        }
-    ],
-    'SUSE': [
-        {
-            'Key': 'AutoAlarm-{}-disk_used_percent-xvda1-xfs-/-GreaterThanThreshold-5m-Average'.format(cw_namespace),
-            'Value': alarm_disk_used_percent_threshold
-        },
-        {
-            'Key': 'AutoAlarm-{}-mem_used_percent-GreaterThanThreshold-5m-Average'.format(cw_namespace),
-            'Value': alarm_memory_high_default_threshold
-        }
-    ]
+            {
+                'Key': 'AutoAlarm-{}-LogicalDisk % Free Space-objectname-LogicalDisk-instance-C:-LessThanThreshold-5m-Average'.format(
+                    cw_namespace),
+                'Value': alarm_disk_space_percent_free_threshold
+            },
+            {
+                'Key': 'AutoAlarm-{}-Memory % Committed Bytes In Use-objectname-Memory-GreaterThanThreshold-5m-Average'.format(
+                    cw_namespace),
+                'Value': alarm_memory_high_default_threshold
+            }
+        ],
+        'Amazon Linux': [
+            {
+                'Key': 'AutoAlarm-{}-disk_used_percent-device-xvda1-fstype-xfs-path-/-GreaterThanThreshold-5m-Average'.format(
+                    cw_namespace),
+                'Value': alarm_disk_used_percent_threshold
+            },
+            {
+                'Key': 'AutoAlarm-{}-mem_used_percent-GreaterThanThreshold-5m-Average'.format(cw_namespace),
+                'Value': alarm_memory_high_default_threshold
+            }
+        ],
+        'Red Hat': [
+            {
+                'Key': 'AutoAlarm-{}-disk_used_percent-device-xvda2-fstype-xfs-path-/-GreaterThanThreshold-5m-Average'.format(
+                    cw_namespace),
+                'Value': alarm_disk_used_percent_threshold
+            },
+            {
+                'Key': 'AutoAlarm-{}-mem_used_percent-GreaterThanThreshold-5m-Average'.format(cw_namespace),
+                'Value': alarm_memory_high_default_threshold
+            }
+        ],
+        'Ubuntu': [
+            {
+                'Key': 'AutoAlarm-{}-disk_used_percent-device-xvda1-fstype-ext4-path-/-GreaterThanThreshold-5m-Average'.format(
+                    cw_namespace),
+                'Value': alarm_disk_used_percent_threshold
+            },
+            {
+                'Key': 'AutoAlarm-{}-mem_used_percent-GreaterThanThreshold-5m-Average'.format(cw_namespace),
+                'Value': alarm_memory_high_default_threshold
+            }
+        ],
+        'SUSE': [
+            {
+                'Key': 'AutoAlarm-{}-disk_used_percent-device-xvda1-fstype-xfs-path-/-GreaterThanThreshold-5m-Average'.format(
+                    cw_namespace),
+                'Value': alarm_disk_used_percent_threshold
+            },
+            {
+                'Key': 'AutoAlarm-{}-mem_used_percent-GreaterThanThreshold-5m-Average'.format(cw_namespace),
+                'Value': alarm_memory_high_default_threshold
+            }
+        ]
+    }
 }
 
 metric_dimensions_map = {
-    'mem_used_percent': [],
-    'disk_used_percent': ['device', 'fstype', 'path'],
-    'Memory % Committed Bytes In Use': ['objectname'],
-    'LogicalDisk % Free Space': ['objectname', 'instance']
+    cw_namespace: append_dimensions,
+    'AWS/EC2':  ['InstanceId'],
+    'AWS/Lambda': ['FunctionName'],
+    'AWS/RDS': ['DBInstanceIdentifier']
 }
-
-
 
 '''
 Process EC2 state change notifications when instance is running (sample event):
@@ -129,7 +133,7 @@ def lambda_handler(event, context):
 
             # instance has been tagged for alarming, confirm an alarm doesn't already exist
             if instance_info:
-                process_alarm_tags(instance_id, instance_info, default_alarms, metric_dimensions_map, sns_topic_arn, append_dimensions,
+                process_alarm_tags(instance_id, instance_info, default_alarms, metric_dimensions_map, sns_topic_arn,
                                    cw_namespace)
         elif 'source' in event and event['source'] == 'aws.ec2' and event['detail']['state'] == 'terminated':
             instance_id = event['detail']['instance-id']
@@ -138,5 +142,5 @@ def lambda_handler(event, context):
     except Exception as e:
         # If any other exceptions which we didn't expect are raised
         # then fail the job and log the exception message.
-        logger.error('Failure creating alarm for instance {}: {}'.format(instance_id, e))
+        logger.error('Failure creating alarm: {}'.format(e))
         raise
