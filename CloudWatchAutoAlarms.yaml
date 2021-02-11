@@ -11,9 +11,13 @@ Parameters:
     Description: Whether Cloudwatch event schedule is enabled or disabled
     Type: String
     Default: ENABLED
-  S3DeploymentBucketAccountId:
-    Description: This is the Account ID where the S3 deployment bucket is deployed.
+  S3DeploymentBucket:
+    Description: Enter the Amazon S3 bucket name that contains the AWS Lambda deployment package
     Type: String
+  S3DeploymentKey:
+    Description: Enter the Amazon S3 key name for your AWS Lambda deployment package
+    Type: String
+    Default:  amazon-cloudwatch-auto-alarms.zip
 
 Resources:
   LambdaFunction:
@@ -26,8 +30,8 @@ Resources:
       MemorySize: !Ref Memory
       Timeout: 600
       Code:
-        S3Bucket: !Sub "amazon-cloudwatch-auto-alarms-bucket-${S3DeploymentBucketAccountId}"
-        S3Key: "amazon-cloudwatch-auto-alarms.zip"
+        S3Bucket: !Ref S3DeploymentBucket
+        S3Key: !Ref S3DeploymentKey
       Environment:
         Variables:
           ALARM_TAG: Create_Auto_Alarms

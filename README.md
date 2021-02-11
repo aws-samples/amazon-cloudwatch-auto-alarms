@@ -1,25 +1,23 @@
-## CloudWatchAutoAlarms - Automatically create and configure CloudWatch alarms for EC2 instances
+## CloudWatchAutoAlarms - Automatically create a set of CloudWatch alarms with tagging
 
 ![CloudWatchAutoAlarms Architecture Diagram](./CloudWatchAutoAlarmsArchitecture.png)
 
-The CloudWatchAutoAlarms AWS Lambda function enables you to quickly and automatically create and manage CloudWatch metric alarms for EC2 instances by tagging instances using the defined syntax.  It prevents errors that may occur by manually creating alarms, reduces the time required to deploy alarms to a large number of instances, and reduces the skills gap required in order to create and manage alarms.  It can be especially useful during a large migration to AWS where many instances may be migrated with a solution such as CloudEndure.
+The CloudWatchAutoAlarms AWS Lambda function enables you to quickly and automatically create a standard set of CloudWatch alarms for your EC2 instances using EC2 instance tags.  It prevents errors that may occur by manually creating alarms, reduces the time required to deploy alarms to a large number of instances, and reduces the skills gap required in order to create and manage alarms.  It can be especially useful during a large migration to AWS where many instances may be migrated into your AWS account at once.
 
-The AWS Lambda function creates the following alarms for Windows, Amazon Linux, Redhat, Ubuntu, or SUSE EC2 instances:
+The default configuration creates alarms for the following Amazon EC2 metrics for Windows, Amazon Linux, Redhat, Ubuntu, or SUSE EC2 instances:
 *  CPU Utilization
 *  CPU Credit Balance (For T Class instances)
-*  Disk Space
-*  Memory
+*  Disk Space Used % (Amazon CloudWatch agent [predefined basic metric](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/create-cloudwatch-agent-configuration-file-wizard.html))
+*  Memory Used % (Amazon CloudWatch agent [predefined basic metric](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/create-cloudwatch-agent-configuration-file-wizard.html))
 
-The CloudWatchAutoAlarms Lambda function is configured to include alarms that align to [the basic metric set](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/create-cloudwatch-agent-configuration-file-wizard.html)
+You can change or add alarms by updating the **default_alarms** dictionary in [cw_auto_alarms.py](src/cw_auto_alarms/cw_auto_alarms.py).
 
-Additional alarms can be automatically created by updating the **default_alarms** dictionary in [cw_auto_alarms.py](./cw_auto_alarms.py).
+The created alarms can be configured to notify an Amazon SNS topic that you specify using the **DEFAULT_ALARM_SNS_TOPIC_ARN** environment variable.  See the **Setup** section for details.    
 
-The created alarms can be configured to notify an SNS topic that you specify using the **DEFAULT_ALARM_SNS_TOPIC_ARN** environment variable.  See the **Setup** section for details.    
-
-The metric alarms are created when an EC2 instance with the tag key **Create_Auto_Alarms** enters the **running** state and they are deleted when the instance is **terminated**.  
+The Amazon CloudWatch alarms are created when an EC2 instance with the tag key **Create_Auto_Alarms** enters the **running** state and they are deleted when the instance is **terminated**.  
 Alarms can be created when an instance is first launched or afterwards by stopping and starting the instance.
 
-The metric alarms are created and configured based on EC2 tags which include the metric name, comparison, period, statistic, and threshold.
+The alarms are created and configured based on EC2 tags which include the metric name, comparison, period, statistic, and threshold.
 
 The tag name syntax for AWS provided metrics is:
 
@@ -34,16 +32,77 @@ You can also specify a different name as described in the **Configuration** sect
 * **Period** is the length of time used to evaluate the metric.  You can specify an integer value followed by s for seconds, m for minutes, h for hours, d for days, and w for weeks.  Your evaluation period should observe CloudWatch evaluation period limits.
 * **Statistic** is the statistic for the MetricName specified, other than percentile.  
 
-The tag value is used to specify the threshold.
+The tag value is used to specify the threshold.  You can also [create alarms for custom Amazon CloudWatch metrics](alarming-on-custom-amazon-ec2-metrics).
 
 For example, one of the preconfigured, default alarms that are included in the **default_alarms** dictionary is **AutoAlarm-AWS/EC2-CPUUtilization-GreaterThanThreshold-5m-Average**.
 When an instance with the tag key **Create_Auto_Alarms** enters the **running** state, an alarm for the AWS provided **CPUUtilization** CloudWatch EC2 metric will be created.
-Additional tags and alarms will also be created for the EC2 instance based on the platform and alarms defined in the **default_alarms** python dictionary defined in [cw_auto_alarms.py](./cw_auto_alarms.py).  
+Additional alarms will also be created for the EC2 instance based on the platform and alarms defined in the **default_alarms** python dictionary defined in [cw_auto_alarms.py](src/cw_auto_alarms/cw_auto_alarms.py).  
 
 Alarms can be updated by changing the tag key or value and stopping and starting the instance.
 
-### Adding / customizing the default alarms created
-You can add or remove alarms that are created by default.  The default alarms are defined in the **default_alarms** python dictionary in [cw_auto_alarms.py](./cw_auto_alarms.py).  
+## Requirements
+1.  The AWS CLI is required to deploy the Lambda function using the deployment instructions.
+2.  The AWS CLI should be configured with valid credentials to create the CloudFormation stack, lambda function, and related resources.  You must also have rights to upload new objects to the S3 bucket you specify in the deployment steps.  
+3.  EC2 instances must have the CloudWatch agent installed and configured with [the basic, standard, or advanced predefined metric sets](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/create-cloudwatch-agent-configuration-file-wizard.html) in order for the default alarms for custom CloudWatch metrics to work.  Scripts named [userdata_linux_basic.sh](./userdata_linux_basic.sh), [userdata_linux_standard.sh](./userdata_linux_standard.sh), and [userdata_linux_advanced.sh](./userdata_linux_advanced.sh) are provided to install and configure the CloudWatch agent on Linux based EC2 instances with their respective predefined metric sets.
+   
+## Setup
+There are a number of settings that can be customized by updating the CloudWatchAutoAlarms Lambda function environment variables defined in the [sam.yaml](./sam.yaml) CloudFormation template.
+The settings will only affect new alarms that you create so you should customize these values to meet your requirements before you deploy the Lambda function.
+The following list provides a description of the setting along with the environment variable name and default value:
+
+* **ALARM_TAG**: Create_Auto_Alarms
+    * The CloudWatchAutoAlarms Lambda function will only create alarms for instances that are tagged with this name tag.  The default tag name is Create_Auto_Alarms.  If you want to use a different name, change the value of the ALARM_TAG environment variable.
+* **CLOUDWATCH_NAMESPACE**: CWAgent
+    * You can change the namespace where the Lambda function should look for your CloudWatch metrics. The default CloudWatch agent metrics namespace is CWAgent.  If your CloudWatch agent configuration is using a different namespace, then update the  CLOUDWATCH_NAMESPACE environment variable.
+* **CLOUDWATCH_APPEND_DIMENSIONS**: InstanceId, ImageId, InstanceType, AutoScalingGroupName 
+    * You can add EC2 metric dimensions to all metrics collected by the CloudWatch agent.  This environment variable aligns to your CloudWatch configuration setting for append_dimensions.  The default setting includes all the supported dimensions:  InstanceId, ImageId, InstanceType, AutoScalingGroupName
+* **DEFAULT_ALARM_SNS_TOPIC_ARN**:  arn:aws:sns:${AWS::Region}:${AWS::AccountId}:CloudWatchAutoAlarmsSNSTopic
+    * You can define an Amazon Simple Notification Service (Amazon SNS) topic that the Lambda function will specify as the notification target for created alarms. This environment variable is commented out by default, so notifications are not sent unless you uncomment this variable and set it to an appropriate Amazon SNS ARN before deployment.  You can use this sample Amazon SNS topic CloudFormation template for the walkthrough.
+* You can update the thresholds for the default alarms by updating the following environment variables:
+    * **ALARM_CPU_HIGH_THRESHOLD**: 75
+    * **ALARM_CPU_CREDIT_BALANCE_LOW_THRESHOLD**: 100
+    * **ALARM_MEMORY_HIGH_THRESHOLD**: 75
+    * **ALARM_DISK_PERCENT_LOW_THRESHOLD**: 20
+
+## Deploy 
+
+1. Clone the amazon-cloudwatch-auto-alarms github repository to your computer using the following command:
+
+       git clone https://github.com/aws-samples/amazon-cloudwatch-auto-alarms
+2. Configure the AWS CLI with credentials for your AWS account.  This walkthrough uses temporary credentials provided by AWS Single Sign On using the **Command line or programmatic access** option.  This sets the **AWS_ACCESS_KEY_ID**, **AWS_SECRET_ACCESS_KEY**, and **AWS_SESSION_TOKEN** AWS environment variables with the appropriate credentials for use with the AWS CLI.
+3. Create an S3 bucket that will be used to store and access the CloudWatchAutoAlarms lambda function deployment package if you don't have one.  You can use [this sample S3 CloudFormation template](./CloudWatchAutoAlarms-S3.yaml).  You can leave the AWS Organizations ID parameter blank if this lambda function will only be deployed in your current account:
+
+       aws cloudformation create-stack --stack-name amazon-cloudwatch-auto-alarms-s3-bucket \
+        --template-body file://CloudWatchAutoAlarms-S3.yaml \
+        --parameters ParameterKey=OrganizationID,ParameterValue="" \
+        --region <enter your aws region id, e.g. "us-east-1">
+4. Update the environment variables in the [CloudWatchAutoAlarms CloudFormation template](./CloudWatchAutoAlarms.yaml) to configure default settings such as alarm thresholds.
+5. Create a zip file containing the CloudWatchAutoAlarms AWS Lambda function code located in the [src](./src) directory.  This is the deployment package that you will use to deploy the AWS Lambda function.  On a Mac, you can use the zip command:
+
+       zip -j amazon-cloudwatch-auto-alarms.zip src/*
+6. Copy the **amazon-cloudwatch-auto-alarms.zip** file to your S3 bucket. 
+
+       aws s3 cp amazon-cloudwatch-auto-alarms.zip s3://<bucket name>
+
+   If you created an S3 bucket using [this sample S3 CloudFormation template](./CloudWatchAutoAlarms-S3.yaml) in step 3, then you can get the bucket name from the AWS Management console or run the following AWS CLI command:
+
+       aws cloudformation describe-stacks --stack-name amazon-cloudwatch-auto-alarms-s3-bucket \
+       --query "Stacks[0].Outputs[?ExportName=='amazon-cloudwatch-auto-alarms-bucket-name'].OutputValue" \
+       --output text \
+       --region <enter your aws region id, e.g. "us-east-1">
+
+7. Deploy the AWS lambda function using the deployment package you uploaded to your S3 bucket:
+
+       aws cloudformation create-stack --stack-name amazon-cloudwatch-auto-alarms \
+       --template-body file://CloudWatchAutoAlarms.yaml \
+       --capabilities CAPABILITY_IAM \
+       --parameters ParameterKey=S3DeploymentKey,ParameterValue=amazon-cloudwatch-auto-alarms.zip \
+       ParameterKey=S3DeploymentBucket,ParameterValue=<S3 bucket with your deployment package> \
+       --region <enter your aws region id, e.g. "us-east-1">
+ 
+
+### Changing the default alarm set
+You can add, remove, and customize alarms in the default alarm set.  The default alarms are defined in the **default_alarms** python dictionary in [cw_auto_alarms.py](src/cw_auto_alarms/cw_auto_alarms.py).  
 
 In order to create an alarm, you must uniquely identify the metric that you want to alarm on.  Standard Amazon EC2 metrics include the **InstanceId** dimension to uniquely identify each standard metric associated with an EC2 instance.  If you want to add an alarm based upon a standard EC2 instance metric, then you can use the tag name syntax:
 
@@ -68,97 +127,53 @@ For example, the tag name used to create an alarm for the average **disk_used_pe
 
 Where the **device** dimension has a value of **xvda1**, the **fstype** dimension has a value of **xfs**, and the **path** dimension has a value of **/**.
  
-This syntax and approach allows you to collectively support metrics with different numbers of dimensions and names.  Using this syntax, you can add alarms for metrics with custom dimensions to the appropriate platform in the **default_alarms** dictionary in [cw_auto_alarms.py](./cw_auto_alarms.py)
+This syntax and approach allows you to collectively support metrics with different numbers of dimensions and names.  Using this syntax, you can add alarms for metrics with custom dimensions to the appropriate platform in the **default_alarms** dictionary in [cw_auto_alarms.py](src/cw_auto_alarms/cw_auto_alarms.py)
 
 You should also make sure that the **CLOUDWATCH_APPEND_DIMENSIONS** environment variable is set correctly in order to ensure that created alarms include these dimensions.  The lambda function will dynamically lookup the values for these dimensions at runtime.
 
-## Requirements
-1.  The AWS CLI is required to deploy the Lambda function using the deployment instructions.
-2.  The AWS CLI should be configured with valid credentials to create the CloudFormation stack, lambda function, and related resources.  You must also have rights to upload new objects to the S3 bucket you specify in the deployment steps.  
-3.  EC2 instances must have the CloudWatch agent installed and configured with [the basic, standard, or advanced predefined metric sets](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/create-cloudwatch-agent-configuration-file-wizard.html) in order for the created alarms to work.  Scripts named [userdata_linux_basic.sh](./userdata_linux_basic.sh), [userdata_linux_standard.sh](./userdata_linux_standard.sh), and [userdata_linux_advanced.sh](./userdata_linux_advanced.sh) are provided to install and configure the CloudWatch agent on Linux based EC2 instances with the predefined metric sets.  The lambda function is implemented to support the basic metric set by default.
-   
-## Setup
-There are a number of settings that can be customized by updating the CloudWatchAutoAlarms Lambda function environment variables defined in the [sam.yaml](./sam.yaml) CloudFormation template.
-The settings will only affect new alarms that you create so you should customize these values to meet your requirements before you deploy the Lambda function.
-The following list provides a description of the setting along with the environment variable name and default value:
+### Create a specific alarm for a specific EC2 instance using tags
 
-* **ALARM_TAG**: Create_Auto_Alarms
-    * The CloudWatchAutoAlarms Lambda function will only create alarms for instances that are tagged with this name tag.  The default tag name is Create_Auto_Alarms.  If you want to use a different name, change the value of the ALARM_TAG environment variable.
-* **CLOUDWATCH_NAMESPACE**: CWAgent
-    * You can change the namespace where the Lambda function should look for your CloudWatch metrics. The default CloudWatch agent metrics namespace is CWAgent.  If your CloudWatch agent configuration is using a different namespace, then update the  CLOUDWATCH_NAMESPACE environment variable.
-* **CLOUDWATCH_APPEND_DIMENSIONS**: InstanceId, ImageId, InstanceType, AutoScalingGroupName 
-    * You can add EC2 metric dimensions to all metrics collected by the CloudWatch agent.  This environment variable aligns to your CloudWatch configuration setting for append_dimensions.  The default setting includes all the supported dimensions:  InstanceId, ImageId, InstanceType, AutoScalingGroupName
-* **DEFAULT_ALARM_SNS_TOPIC_ARN**:  arn:aws:sns:${AWS::Region}:${AWS::AccountId}:CloudWatchAutoAlarmsSNSTopic
-    * You can define an Amazon Simple Notification Service (Amazon SNS) topic that the Lambda function will specify as the notification target for created alarms. This environment variable is commented out by default, so notifications are not sent unless you uncomment this variable and set it to an appropriate Amazon SNS ARN before deployment.  You can use this sample Amazon SNS topic CloudFormation template for the walkthrough.
-* You can update the thresholds for the default alarms by updating the following environment variables:
-    * ALARM_CPU_HIGH_THRESHOLD: 75
-    * ALARM_CPU_CREDIT_BALANCE_LOW_THRESHOLD: 100
-    * ALARM_MEMORY_HIGH_THRESHOLD: 75
-    * ALARM_DISK_PERCENT_LOW_THRESHOLD: 20
+You can create alarms that are specific to an individual EC2 instance by adding a tag to the instance using the tag key syntax described in [changing the default alarm set](#changing-the-default-alarm-set).  Simply add a tag to the instance on launch or restart the instance after you have added the tag.  You can also update the thresholds for created alarms by updating the tag values, causing the alarm to be updated when the instance is stopped and started.
 
-* Alarm Tag:  The CloudWatchAutoAlarms Lambda function will only create alarms for instances that are tagged with this specified name tag.  If you want to use a different name, enter it here:
-    * ALARM_TAG: Create_Auto_Alarms
+For example, to add an alarm for the Amazon EC2 **StatusCheckFailed** CloudWatch metric for an existing EC2 instance:
 
-* CloudWatch Namespace:  You can change the namespace where the Lambda function should look for your CloudWatch metrics.  The default CloudWatch agent metrics namespace is CWAgent.  
-If your CloudWatch agent configuration is using a different namespace that update it here:
-    * CLOUDWATCH_NAMESPACE: CWAgent
+1. On the **Tags** tab, choose **Manage tags**, and then choose **Add tag**. For **Key**, enter **AutoAlarm-AWS/EC2-StatusCheckFailed-GreaterThanThreshold-5m-Average**. For Value, enter **1**. Choose **Save**.
 
-* Additional Dimensions:   
-* Alarm Thresholds:  You can update the default thresholds used to create new CloudWatch Metric alarms by updating the following environment variables:
-    * ALARM_CPU_HIGH_THRESHOLD: 75
-    * ALARM_CPU_CREDIT_BALANCE_LOW_THRESHOLD: 100
-    * ALARM_MEMORY_HIGH_THRESHOLD: 75
-    * ALARM_DISK_PERCENT_LOW_THRESHOLD: 20
+2. Stop and start the Amazon EC2 instance.
 
-* Notifications:  You can define an SNS topic that the CloudWatchAutoAlarms Lambda function will specify as the notification target for created alarms.  
-This environment variable is commented out by default, so no notifications are sent unless you uncomment this variable and set it to an appropriate SNS ARN before deployment:
-    * DEFAULT_ALARM_SNS_TOPIC_ARN: <no default value>
+3. After the instance is stopped and restarted, go to the **Alarms** page in the CloudWatch console to confirm that the alarm was created.  You should find a new alarm named **AutoAlarm-<instance id omitted>-StatusCheckFailed-GreaterThanThreshold-1-5m**.
 
-
-## Deploy 
-
-To deploy this lambda function, clone this repository.  Then run the following command with **<s3_bucket_name>** updated to reflect the S3 bucket that you want to use to deploy the Lambda function.  The S3 bucket should be in the same region that you want to deploy the lambda function.  Ensure that your [AWS credentials are set as environment variables](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html):
-
-    aws cloudformation package --template-file sam.yaml --s3-bucket <s3_bucket_name> --output-template-file sam-deploy.yaml
-
-After the Lambda function has been packaged and the sam-deploy.yaml file has been created, run the following command with **<region_name>** updated to reflect the region you wish to deploy the Lambda function:
-
-    aws cloudformation deploy --template-file sam-deploy.yaml --stack-name cloudwatch-auto-alarms --capabilities CAPABILITY_IAM --region <region>
 
 ## Deploying in a multi-region, multi-account environment
 
-You can deploy the CloudWatchAutoAlarms lambda function into a multi-account, multi-region environment by using [CloudFormation StackSets](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/what-is-cfnstacksets.html).  In order to deploy an AWS Lambda function with StackSets you must first copy the CloudFormation template to an S3 bucket that is accessible by all your accounts and regions.  One way to accomplish this is by creating an S3 bucket that grants permissions to all the accounts in your AWS organization.  You can use [this sample Amazon S3 CloudFormation template](https://github.com/aws-samples/amazon-cloudwatch-auto-alarms/blob/main/CloudWatchAutoAlarms-S3.yaml) to create an S3 bucket called **amazon-cloudwatch-auto-alarms-bucket-<Your Account ID>**.  The CloudFormation template includes an S3 bucket policy that grants read permissions to an AWS Organizations ID that you specify via a template parameter.  If you leave the template parameter blank, then the policy statements that grant organization access are not included.  If you are using a single account, leave the AWS Organizations ID parameter blank.  This will still allow you to deploy the lambda function using the created S3 bucket across multiple regions in a single account.  
+You can deploy the CloudWatchAutoAlarms lambda function into a multi-account, multi-region environment by using [CloudFormation StackSets](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/what-is-cfnstacksets.html).  
 
-Follow these steps to deploy the CloudWatchAutoAlarms lambda function across multiple regions and accounts within your AWS Organization:
-1.	Clone the amazon-cloudwatch-auto-alarms github repository to your computer using the following command:
+Follow [steps 1 through 6 in the normal deployment process](#deploy).   For step #3, enter your AWS Organizations ID for the **OrganizationID** parameter.  This will update the S3 bucket policy to allow read access to all accounts in your AWS organization.  
 
-    git clone https://github.com/aws-samples/amazon-cloudwatch-auto-alarms
+Continue with the following steps to deploy a service managed AWS StackSet for the CloudWatchAutoAlarms lambda function.  This will deploy the CloudWatchAutoAlarms Lambda function into the organization units that you specify.  The lambda function will also be automatically deployed to new accounts in the AWS organization. 
 
-2.	Configure the AWS CLI with credentials for your AWS account.  This walkthrough uses temporary credentials provided by AWS Single Sign On using the **Command line or programmatic access** option.  This sets the **AWS_ACCESS_KEY_ID**, **AWS_SECRET_ACCESS_KEY**, and **AWS_SESSION_TOKEN** AWS environment variables with the appropriate credentials for use with the AWS CLI.
-3.	Create an S3 bucket that will be used to store and access the CloudWatchAutoAlarms lambda function deployment package from multiple regions and accounts.  You can use [this sample S3 CloudFormation template](https://github.com/aws-samples/amazon-cloudwatch-auto-alarms/blob/main/CloudWatchAutoAlarms-S3.yaml) which also configures a bucket policy to provide read access to your AWS Organization.  You can deploy this using the AWS CLI with the following command (Note:  The Organization ID is omitted in this example):
+1. You can now use the CloudWatchAutoAlarms CloudFormation template to deploy the Lambda function across multiple regions and accounts in your AWS Organization.  This walkthrough deploys a service managed CloudFormation StackSet in the AWS Organizations master account.  You must also specify the account ID where the S3 deployment bucket was created so the same S3 bucket is used across account deployments in your organization.  Use the following command to deploy the service managed CloudFormation StackSet:
 
-    aws cloudformation create-stack --stack-name amazon-cloudwatch-auto-alarms-s3-bucket --parameters ParameterKey=OrganizationID,ParameterValue=<org id> --template-body file://CloudWatchAutoAlarms-S3.yaml —region us-east-1
+       aws cloudformation create-stack-set --stack-set-name amazon-cloudwatch-auto-alarms \
+       --template-body file://CloudWatchAutoAlarms.yaml \
+       --capabilities CAPABILITY_NAMED_IAM \
+       --auto-deployment Enabled=true,RetainStacksOnAccountRemoval=false \
+       --permission-model SERVICE_MANAGED \
+       --parameters ParameterKey=S3DeploymentKey,ParameterValue=amazon-cloudwatch-auto-alarms.zip \
+       ParameterKey=S3DeploymentBucket,ParameterValue=<S3 bucket with your deployment package> \
+       --region <enter your aws region id, e.g. "us-east-1">
 
-4.	Update the environment variables in the CloudWatchAutoAlarms CloudFormation template to configure default settings such as alarm thresholds.  Note that this template references the S3 bucket that you created earlier in this walkthrough.  Also note that this template references a zip file named amazon-cloudwatch-auto-alarms.zip.  
-5.	Create the **amazon-cloudwatch-auto-alarms.zip** zip file for the CloudWatchAutoAlarms lambda deployment package.  On mac, you can use the zip command:
+2. After the StackSet is created, you can specify which AWS accounts and regions the StackSet should be deployed.  For service managed StackSets, you specify your AWS Organization ID or AWS Organizational Unit IDs to deploy the lambda function to all current and future accounts within them.   Use the following AWS CLI command to deploy the StackSet to your organization / organizational units:
 
-    zip amazon-cloudwatch-auto-alarms.zip *.py
+       aws cloudformation create-stack-instances --stack-set-name amazon-cloudwatch-auto-alarms \
+       --operation-id amazon-cloudwatch-auto-alarms-deployment-$(date | md5) \
+       --deployment-targets OrganizationalUnitIds=<Enter the target OUs where the lambda function should be deployed> \
+       --regions <enter the target regions where the lambda function should be deployed e.g. "us-east-1"> \
+       --region <enter your aws region id, e.g. "us-east-1">
 
-6.	Copy the **amazon-cloudwatch-auto-alarms.zip** file to the S3 bucket you created earlier.  You can use the following command (Note: The Account ID is omitted):
+   You can monitor the progress and status of the StackSet operation in the AWS CloudFormation service console.  
 
-    aws s3 cp amazon-cloudwatch-auto-alarms.zip s3://amazon-cloudwatch-auto-alarms-bucket-<account id omitted>
-
-7.	You can now use the CloudWatchAutoAlarms CloudFormation template to deploy the Lambda function across multiple regions and accounts in your AWS Organization.  This walkthrough deploys a service managed CloudFormation StackSet in the AWS Organizations master account.  You must also specify the account ID where the S3 deployment bucket was created so the same S3 bucket is used across account deployments in your organization.  Use the following command to deploy the service managed CloudFormation StackSet:
-
-    aws cloudformation create-stack-set --stack-set-name amazon-cloudwatch-auto-alarms --template-body file://CloudWatchAutoAlarms.yaml --parameters ParameterKey=S3DeploymentBucketAccountId,ParameterValue=<account id omitted> --capabilities CAPABILITY_NAMED_IAM --auto-deployment Enabled=true,RetainStacksOnAccountRemoval=false --permission-model SERVICE_MANAGED --region us-east-1
-
-8.	 After the StackSet is created, you can specify which AWS accounts and regions the StackSet should be deployed.  For service managed StackSets, you specify your AWS Organization ID or AWS Organizational Unit IDs gain order to deploy the lambda function to all current and future accounts within them.   Use the following AWS CLI command to deploy the StackSet to your organization / organizational units (Note:  The organization id is omitted from the example and the us-east-1 region is used):
-
-    aws cloudformation create-stack-instances --stack-set-name amazon-cloudwatch-auto-alarms --deployment-targets OrganizationalUnitIds=<Root Organization ID omitted> --regions us-east-1 --operation-id amazon-cloudwatch-auto-alarms-deployment-1 --region us-east-1
-
-You can monitor the progress and status of the StackSet operation in the AWS CloudFormation service console.  
-
-Once the deployment is complete, the status will change from **RUNNING** to **SUCCEEDED**.
+   Once the deployment is complete, the status will change from **RUNNING** to **SUCCEEDED**.
 
 ## Security
 

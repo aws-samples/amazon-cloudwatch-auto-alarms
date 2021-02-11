@@ -13,7 +13,6 @@ Resources:
   LambdaDeploymentBucket:
     Type: "AWS::S3::Bucket"
     Properties:
-      BucketName: !Sub "amazon-cloudwatch-auto-alarms-bucket-${AWS::AccountId}"
 #      BucketEncryption:
 #        ServerSideEncryptionConfiguration:
 #          - ServerSideEncryptionByDefault:
@@ -101,6 +100,6 @@ Resources:
 Outputs:
   LambdaDeploymentBucketName:
     Value: !Ref LambdaDeploymentBucket
-    Description: "Lambda S3 deployment bucket for cross account deployment support of amazon-cloudwatch-auto-alarms lambda function"
+    Description: "Lambda S3 deployment bucket name for deployment support of amazon-cloudwatch-auto-alarms lambda function"
     Export:
       Name: !Sub "amazon-cloudwatch-auto-alarms-bucket-name"
