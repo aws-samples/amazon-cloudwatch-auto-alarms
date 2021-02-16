@@ -18,6 +18,13 @@ Parameters:
     Description: Enter the Amazon S3 key name for your AWS Lambda deployment package
     Type: String
     Default:  amazon-cloudwatch-auto-alarms.zip
+  AlarmNotificationARN:
+    Description: Enter the Amazon SNS Notification ARN for alarm notifications, leave blank to disable notifications.
+    Type: String
+    Default: ""
+
+Conditions:
+  ConfigureAlarmNotifications: !Not [!Equals ["", !Ref AlarmNotificationARN]]
 
 Resources:
   LambdaFunction:
@@ -41,7 +48,7 @@ Resources:
           ALARM_MEMORY_HIGH_THRESHOLD: 75
           ALARM_DISK_PERCENT_LOW_THRESHOLD: 20
           CLOUDWATCH_APPEND_DIMENSIONS: 'InstanceId, ImageId, InstanceType'
-          # DEFAULT_ALARM_SNS_TOPIC_ARN: !Sub "arn:aws:sns:${AWS::Region}:${AWS::AccountId}:CloudWatchAutoAlarmsSNSTopic"
+          DEFAULT_ALARM_SNS_TOPIC_ARN: !If [ConfigureAlarmNotifications, !Ref AlarmNotificationARN, !Ref "AWS::NoValue"]
 
 
   CloudWatchAutoAlarmLambdaRole:

@@ -1,13 +1,13 @@
 ---
 Description: SNS Topic for the notification configuration of alarms created by the amazon-cloudwatch-auto-alarms Lambda function
 AWSTemplateFormatVersion: '2010-09-09'
-#Parameters:
-#  OrganizationID:
-#    Description: Provide read access to all accounts in the organization.  Leave blank for single account S3 bucket permissions.
-#    Type: String
-#    Default: ""
-#Conditions:
-#  OrgEnabledAccess: !Not [!Equals ["", !Ref OrganizationID]]
+Parameters:
+  OrganizationID:
+    Description: Provide cloudwatch publish rights from all accounts in the organization.  Leave blank for single account, single region implementation.
+    Type: String
+    Default: ""
+Conditions:
+  OrgEnabledAccess: !Not [!Equals ["", !Ref OrganizationID]]
 
 Resources:
   CloudWatchAutoAlarmsSNSTopic:
@@ -41,6 +41,27 @@ Resources:
                   - !Ref AWS::Region
                   - !Ref AWS::AccountId
                   - !GetAtt CloudWatchAutoAlarmsSNSTopic.TopicName
+          - !If
+            - OrgEnabledAccess
+            - Sid: 'allow org to publish to sns topic'
+              Effect: Allow
+              Principal: "*"
+              Action:
+                - sns:Publish
+              Resource:
+                - !Join
+                  - ':'
+                  - - 'arn'
+                    - !Ref AWS::Partition
+                    - 'sns'
+                    - !Ref AWS::Region
+                    - !Ref AWS::AccountId
+                    - !GetAtt CloudWatchAutoAlarmsSNSTopic.TopicName
+              Condition:
+                ForAnyValue:StringLike:
+                  aws:PrincipalOrgPaths:
+                    - !Sub "${OrganizationID}/*"
+            - !Ref 'AWS::NoValue'
 
 Outputs:
   CloudWatchAutoAlarmsSNSTopicArn:
