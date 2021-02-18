@@ -72,7 +72,7 @@ The following list provides a description of the setting along with the environm
 2. Configure the AWS CLI with credentials for your AWS account.  This walkthrough uses temporary credentials provided by AWS Single Sign On using the **Command line or programmatic access** option.  This sets the **AWS_ACCESS_KEY_ID**, **AWS_SECRET_ACCESS_KEY**, and **AWS_SESSION_TOKEN** AWS environment variables with the appropriate credentials for use with the AWS CLI.
 3. Create an Amazon SNS topic that CloudWatchAutoAlarms will use for notifications. You can use this sample Amazon SNS CloudFormation template to create an SNS topic.  Leave the OrganizationID parameter blank, it is used for multi-account deployments.
 
-       aws cloudformation create-stack --stack-name cloudwatch-auto-alarms-sns-topic \ 
+       aws cloudformation create-stack --stack-name amazon-cloudwatch-auto-alarms-sns-topic \ 
        --template-body file://CloudWatchAutoAlarms-SNS.yaml \ 
        --parameters ParameterKey=OrganizationID,ParameterValue="" \ 
        --region <enter your aws region id, e.g. "us-east-1">
@@ -107,7 +107,13 @@ The following list provides a description of the setting along with the environm
        ParameterKey=AlarmNotificationARN,ParameterValue=<SNS Topic ARN for Alarm Notifications> \
        --region <enter your aws region id, e.g. "us-east-1">
  
+   If you don't want to enable SNS notifications, you can set the **ParameterValue** to **""** for **AlarmNotificationARN**. 
+   
+   You can retrieve the SNS Topic ARN from step #3 for the **AlarmNotificationARN** parameter value by running the following command:
 
+       aws cloudformation describe-stacks --stack-name amazon-cloudwatch-auto-alarms-sns-topic \
+       --query "Stacks[0].Outputs[?ExportName=='amazon-cloudwatch-auto-alarms-sns-topic-arn'].OutputValue" \
+       --output text --region <enter your aws region id, e.g. "us-east-1">
 ### Changing the default alarm set
 You can add, remove, and customize alarms in the default alarm set.  The default alarms are defined in the **default_alarms** python dictionary in [cw_auto_alarms.py](src/cw_auto_alarms.py).  
 
