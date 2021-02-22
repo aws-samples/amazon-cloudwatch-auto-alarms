@@ -48,6 +48,10 @@ Resources:
           ALARM_MEMORY_HIGH_THRESHOLD: 75
           ALARM_DISK_PERCENT_LOW_THRESHOLD: 20
           CLOUDWATCH_APPEND_DIMENSIONS: 'InstanceId, ImageId, InstanceType'
+
+          ALARM_LAMBDA_ERROR_THRESHOLD: 0
+          ALARM_LAMBDA_THROTTLE_THRESHOLD: 0
+
           DEFAULT_ALARM_SNS_TOPIC_ARN: !If [ConfigureAlarmNotifications, !Ref AlarmNotificationARN, !Ref "AWS::NoValue"]
 
 
@@ -99,8 +103,12 @@ Resources:
                   - cloudwatch:DeleteAlarms
                   - cloudwatch:PutMetricAlarm
                 Resource:  !Sub "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:AutoAlarm-*"
+              - Effect: Allow
+                Action:
+                  - cloudwatch:DescribeAlarms
+                Resource: "*"
 
-  LambdaInvokePermissionCloudwatchEvents:
+  LambdaInvokePermissionCloudwatchEventsEC2:
     Type: AWS::Lambda::Permission
     Properties:
       FunctionName: !GetAtt
@@ -109,13 +117,13 @@ Resources:
       Action: 'lambda:InvokeFunction'
       Principal: events.amazonaws.com
       SourceArn: !GetAtt
-        - CloudWatchAutoAlarmCloudwatchEvent
+        - CloudWatchAutoAlarmCloudwatchEventEC2
         - Arn
 
-  CloudWatchAutoAlarmCloudwatchEvent:
+  CloudWatchAutoAlarmCloudwatchEventEC2:
     Type: AWS::Events::Rule
     Properties:
-      Name: Initiate-CloudWatchAutoAlarms
+      Name: Initiate-CloudWatchAutoAlarmsEC2
       Description: Creates CloudWatch alarms on instance start via Lambda CloudWatchAutoAlarms and deletes them on instance termination.
       EventPattern: '
         {
@@ -136,3 +144,44 @@ Resources:
       Targets:
         - Arn: !GetAtt LambdaFunction.Arn
           Id: LATEST
+
+  CloudWatchAutoAlarmCloudwatchEventLambda:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: Initiate-CloudWatchAutoAlarmsLambda
+      Description: Creates CloudWatch alarms on for lambda functions with the CloudWatchAutoAlarms activation tag
+      EventPattern: '
+        {
+          "source": [
+            "aws.lambda"
+          ],
+          "detail-type": [
+            "AWS API Call via CloudTrail"
+          ],
+          "detail": {
+            "eventSource": [
+              "lambda.amazonaws.com"
+            ],
+            "eventName": [
+              "TagResource20170331v2",
+              "DeleteFunction20150331"
+            ]
+          }
+        }
+        '
+      State: !Ref EventState
+      Targets:
+        - Arn: !GetAtt LambdaFunction.Arn
+          Id: LATEST
+
+  LambdaInvokePermissionCloudwatchEventsLambda:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt
+        - LambdaFunction
+        - Arn
+      Action: 'lambda:InvokeFunction'
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt
+        - CloudWatchAutoAlarmCloudwatchEventLambda
+        - Arn
