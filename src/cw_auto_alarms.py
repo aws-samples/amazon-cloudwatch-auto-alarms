@@ -1,5 +1,5 @@
 import logging
-from actions import check_alarm_tag, process_alarm_tags, delete_alarms
+from actions import check_alarm_tag, process_alarm_tags, delete_alarms, process_lambda_alarms
 from os import getenv
 
 logger = logging.getLogger()
@@ -17,6 +17,12 @@ alarm_memory_high_default_threshold = getenv("ALARM_MEMORY_HIGH_THRESHOLD", "75"
 alarm_disk_space_percent_free_threshold = getenv("ALARM_DISK_PERCENT_LOW_THRESHOLD", "20")
 alarm_disk_used_percent_threshold = 100 - int(alarm_disk_space_percent_free_threshold)
 
+alarm_lambda_error_threshold = getenv("ALARM_LAMBDA_ERROR_THRESHOLD", "1")
+alarm_lambda_throttles_threshold = getenv("ALARM_LAMBDA_THROTTLE_THRESHOLD", "1")
+alarm_lambda_dead_letter_error_threshold = getenv("ALARM_LAMBDA_DEAD_LETTER_ERROR_THRESHOLD", "1")
+alarm_lambda_destination_delivery_failure_threshold = getenv("ALARM_LAMBDA_DESTINATION_DELIVERY_FAILURE_THRESHOLD", "1")
+
+
 sns_topic_arn = getenv("DEFAULT_ALARM_SNS_TOPIC_ARN", None)
 
 # For Redhat, the default device is xvda2, xfs, for Ubuntu, the default fstype is ext4,
@@ -30,6 +36,16 @@ default_alarms = {
         {
             'Key': 'AutoAlarm-AWS/EC2-CPUCreditBalance-LessThanThreshold-5m-Average',
             'Value': alarm_credit_balance_low_default_threshold
+        }
+    ],
+    'AWS/Lambda': [
+        {
+            'Key': 'AutoAlarm-AWS/Lambda-Errors-GreaterThanThreshold-5m-Average',
+            'Value': alarm_lambda_error_threshold
+        },
+        {
+            'Key': 'AutoAlarm-AWS/Lambda-Throttles-GreaterThanThreshold-5m-Average',
+            'Value': alarm_lambda_throttles_threshold
         }
     ],
     cw_namespace: {
@@ -95,32 +111,8 @@ default_alarms = {
 
 metric_dimensions_map = {
     cw_namespace: append_dimensions,
-    'AWS/EC2':  ['InstanceId'],
-    'AWS/Lambda': ['FunctionName'],
-    'AWS/RDS': ['DBInstanceIdentifier']
+    'AWS/EC2': ['InstanceId']
 }
-
-'''
-Process EC2 state change notifications when instance is running (sample event):
-
-{
-    "version": "0",
-    "id": "ee376907-2647-4179-9203-343cfb3017a4",
-    "detail-type": "EC2 Instance State-change Notification",
-    "source": "aws.ec2",
-    "account": "123456789012",
-    "time": "2015-11-11T21:30:34Z",
-    "region": "us-east-1",
-    "resources": [
-        "arn:aws:ec2:us-east-1:123456789012:instance/i-abcd1111"
-    ],
-    "detail": {
-        "instance-id": "i-0078bdfee966f18ec",
-        "state": "running"
-    }
-}
-
-'''
 
 
 def lambda_handler(event, context):
@@ -138,6 +130,18 @@ def lambda_handler(event, context):
         elif 'source' in event and event['source'] == 'aws.ec2' and event['detail']['state'] == 'terminated':
             instance_id = event['detail']['instance-id']
             result = delete_alarms(instance_id)
+        elif 'source' in event and event['source'] == 'aws.lambda' and event['detail'][
+            'eventName'] == 'TagResource20170331v2':
+            logger.debug(
+                'Tag Lambda Function event occurred, tags are: {}'.format(event['detail']['requestParameters']['tags']))
+            tags = event['detail']['requestParameters']['tags']
+            function = event['detail']['requestParameters']['resource'].split(":")[-1]
+            process_lambda_alarms(function, tags, create_alarm_tag, default_alarms, sns_topic_arn)
+        elif 'source' in event and event['source'] == 'aws.lambda' and event['detail'][
+            'eventName'] == 'DeleteFunction20150331':
+            function = event['detail']['requestParameters']['functionName']
+            logger.debug('Delete Lambda Function event occurred for: {}'.format(function))
+            result = delete_alarms(function)
 
     except Exception as e:
         # If any other exceptions which we didn't expect are raised

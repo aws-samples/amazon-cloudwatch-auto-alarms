@@ -2,13 +2,18 @@
 
 ![CloudWatchAutoAlarms Architecture Diagram](./CloudWatchAutoAlarmsArchitecture.png)
 
-The CloudWatchAutoAlarms AWS Lambda function enables you to quickly and automatically create a standard set of CloudWatch alarms for your EC2 instances using EC2 instance tags.  It prevents errors that may occur by manually creating alarms, reduces the time required to deploy alarms to a large number of instances, and reduces the skills gap required in order to create and manage alarms.  It can be especially useful during a large migration to AWS where many instances may be migrated into your AWS account at once.
+The CloudWatchAutoAlarms AWS Lambda function enables you to quickly and automatically create a standard set of CloudWatch alarms for your Amazon EC2 instances or AWS Lambda functions using tags.  It prevents errors that may occur by manually creating alarms, reduces the time required to deploy alarms, and reduces the skills gap required in order to create and manage alarms.  It can be especially useful during a large migration to AWS where many resources may be migrated into your AWS account at once.
 
 The default configuration creates alarms for the following Amazon EC2 metrics for Windows, Amazon Linux, Redhat, Ubuntu, or SUSE EC2 instances:
 *  CPU Utilization
 *  CPU Credit Balance (For T Class instances)
 *  Disk Space Used % (Amazon CloudWatch agent [predefined basic metric](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/create-cloudwatch-agent-configuration-file-wizard.html))
 *  Memory Used % (Amazon CloudWatch agent [predefined basic metric](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/create-cloudwatch-agent-configuration-file-wizard.html))
+
+The default configuration also creates alarms for the following [AWS Lambda metrics](https://docs.aws.amazon.com/lambda/latest/dg/monitoring-metrics.html#monitoring-metrics-types):
+
+* Errors
+* Throttles
 
 You can change or add alarms by updating the **default_alarms** dictionary in [cw_auto_alarms.py](src/cw_auto_alarms.py).
 
@@ -59,11 +64,17 @@ The following list provides a description of the setting along with the environm
 * **DEFAULT_ALARM_SNS_TOPIC_ARN**:  arn:aws:sns:${AWS::Region}:${AWS::AccountId}:CloudWatchAutoAlarmsSNSTopic
     * You can define an Amazon Simple Notification Service (Amazon SNS) topic that the Lambda function will specify as the notification target for created alarms. You provide the Amazon SNS Topic Amazon Resource Name (ARN) with the **AlarmNotificationARN** parameter when you deploy the CloudWatchAutoAlarms.yaml CloudFormation template.  If you leave the **AlarmNotificationARN** parameter value blank, then this environment variable is not set and created alarms won't use notifications.
 * You can update the thresholds for the default alarms by updating the following environment variables:
+
+   **For Amazon EC2**:
     * **ALARM_CPU_HIGH_THRESHOLD**: 75
     * **ALARM_CPU_CREDIT_BALANCE_LOW_THRESHOLD**: 100
     * **ALARM_MEMORY_HIGH_THRESHOLD**: 75
     * **ALARM_DISK_PERCENT_LOW_THRESHOLD**: 20
 
+   **For AWS Lambda**: 
+    * **ALARM_LAMBDA_ERROR_THRESHOLD**: 0
+    * **ALARM_LAMBDA_THROTTLE_THRESHOLD**: 0
+    
 ## Deploy 
 
 1. Clone the amazon-cloudwatch-auto-alarms github repository to your computer using the following command:
@@ -114,6 +125,16 @@ The following list provides a description of the setting along with the environm
        aws cloudformation describe-stacks --stack-name amazon-cloudwatch-auto-alarms-sns-topic \
        --query "Stacks[0].Outputs[?ExportName=='amazon-cloudwatch-auto-alarms-sns-topic-arn'].OutputValue" \
        --output text --region <enter your aws region id, e.g. "us-east-1">
+
+## Activate
+
+In order to create the default alarm set for an Amazon EC2 instance or AWS Lambda function, you simply need to tag the Amazon EC2 instance or AWS Lambda function with the activation tag key defined by the **ALARM_TAG** environment variable.  The default tag activation key is **Create_Auto_Alarms**.
+
+For Amazon EC2 instances, you must add this tag during instance launch or you can add this tag at any time to an instance and then stop and start the instance in order to create the default alarm set as well as any custom, instance specific alarms.
+
+For AWS Lambda, you can add this tag to an AWS Lambda function at any time in order to create the default alarm set as well as any custom, function specific alarms.
+
+
 ### Changing the default alarm set
 You can add, remove, and customize alarms in the default alarm set.  The default alarms are defined in the **default_alarms** python dictionary in [cw_auto_alarms.py](src/cw_auto_alarms.py).  
 
@@ -121,7 +142,13 @@ In order to create an alarm, you must uniquely identify the metric that you want
 
 AutoAlarm-AWS/EC2-\<**MetricName**>-\<**ComparisonOperator**>-\<**Period**>-\<**Statistic**>
 
-This syntax doesn't include any dimension names because the InstanceId dimension is used for metrics in the **AWS/EC2** namespace.  These AWS provided EC2 metrics are common across all platforms for EC2.  You can add any standard Amazon EC2 CloudWatch metric into the **default_alarms** dictionary under the **AWS/EC2** dictionary key using this tag syntax.
+This syntax doesn't include any dimension names because the InstanceId dimension is used for metrics in the **AWS/EC2** namespace.  These AWS provided EC2 metrics are common across all platforms for EC2.
+
+Similarly, AWS Lambda metrics include the **FunctionName** dimension to uniquely identify each standard metric associated with an AWS Lambda function.  If you want to add an alarm based upon a standard AWS Lambda metric, then you can use the tag name syntax:
+
+AutoAlarm-AWS/Lambda-\<**MetricName**>-\<**ComparisonOperator**>-\<**Period**>-\<**Statistic**>
+
+You can add any standard Amazon CloudWatch metric for Amazon EC2 or AWS Lambda into the **default_alarms** dictionary under the **AWS/EC2** or **AWS/Lambda** dictionary key using this tag syntax.
 
 #### Alarming on custom Amazon EC2 metrics
 Metrics captured by the Amazon CloudWatch agent are considered custom metrics.  These metrics are created in the **CWAgent** namespace by default.  Custom metrics may have any number of dimensions in order to uniquely identify a metric.  Additionally, the metric dimensions may be named differently based upon the underlying platform for the EC2 instance.
@@ -156,6 +183,9 @@ For example, to add an alarm for the Amazon EC2 **StatusCheckFailed** CloudWatch
 
 3. After the instance is stopped and restarted, go to the **Alarms** page in the CloudWatch console to confirm that the alarm was created.  You should find a new alarm named **AutoAlarm-<instance id omitted>-StatusCheckFailed-GreaterThanThreshold-1-5m**.
 
+### Creating a specific alarm for a specific AWS Lambda function using tags
+
+You can create alarms that are specific to an individual AWS Lambda function by adding a tag to the instance using the tag key syntax described in [changing the default alarm set](#changing-the-default-alarm-set).
 
 ## Deploying in a multi-region, multi-account environment
 

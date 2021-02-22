@@ -78,6 +78,41 @@ def check_alarm_tag(instance_id, tag_key):
         raise
 
 
+def process_lambda_alarms(function_name, tags, activation_tag, default_alarms, sns_topic_arn):
+    activation_tag = tags.get(activation_tag, 'not_found')
+    if activation_tag == 'not_found':
+        logger.debug('Activation tag not found for {}, nothing to do'.format(function_name))
+        return True
+    else:
+        logger.debug('Processing function specific alarms for: {}'.format(default_alarms))
+        for tag_key in tags:
+            if tag_key.startswith('AutoAlarm'):
+                default_alarms['AWS/Lambda'].append({'Key': tag_key, 'Value': tags[tag_key]})
+
+        # get the default dimensions for AWS/EC2
+        dimensions = list()
+        dimensions.append(
+            {
+                'Name': 'FunctionName',
+                'Value': function_name
+            }
+        )
+
+        for tag in default_alarms['AWS/Lambda']:
+            alarm_properties = tag['Key'].split('-')
+            Namespace = alarm_properties[1]
+            MetricName = alarm_properties[2]
+            ComparisonOperator = alarm_properties[3]
+            Period = alarm_properties[4]
+            Statistic = alarm_properties[5]
+
+            AlarmName = 'AutoAlarm-{}-{}-{}-{}-{}-{}'.format(function_name, Namespace, MetricName, ComparisonOperator,
+                                                             Period,
+                                                             Statistic)
+            create_alarm(AlarmName, MetricName, ComparisonOperator, Period, tag['Value'], Statistic, Namespace,
+                         dimensions, sns_topic_arn)
+
+
 def process_alarm_tags(instance_id, instance_info, default_alarms, metric_dimensions_map, sns_topic_arn, cw_namespace):
     instance_tags = instance_info['Tags']
     ImageId = instance_info['ImageId']
@@ -187,7 +222,7 @@ def process_alarm_tags(instance_id, instance_info, default_alarms, metric_dimens
         Period = alarm_properties[(properties_offset + 4)]
         Statistic = alarm_properties[(properties_offset + 5)]
 
-        AlarmName = AlarmName + '-{}-{}-{}'.format(ComparisonOperator, tag['Value'], Period)
+        AlarmName = AlarmName + '-{}-{}-{}'.format(ComparisonOperator, Period, Statistic)
 
         create_alarm(AlarmName, MetricName, ComparisonOperator, Period, tag['Value'], Statistic, Namespace,
                      total_dimensions, sns_topic_arn)
@@ -288,9 +323,9 @@ def create_alarm(AlarmName, MetricName, ComparisonOperator, Period, Threshold, S
             'Error creating alarm {}!: {}'.format(AlarmName, e))
 
 
-def delete_alarms(instance_id):
+def delete_alarms(name):
     try:
-        AlarmNamePrefix = "AutoAlarm-{}".format(instance_id)
+        AlarmNamePrefix = "AutoAlarm-{}".format(name)
         cw_client = boto3_client('cloudwatch')
         logger.info('calling describe alarms with prefix {}'.format(AlarmNamePrefix))
         response = cw_client.describe_alarms(
@@ -302,7 +337,7 @@ def delete_alarms(instance_id):
             for alarm in response['MetricAlarms']:
                 alarm_name = alarm['AlarmName']
                 alarm_list.append(alarm_name)
-        logger.info('deleting {} for instance {}'.format(alarm_list, instance_id))
+        logger.info('deleting {} for {}'.format(alarm_list, name))
         response = cw_client.delete_alarms(
             AlarmNames=alarm_list
         )
@@ -311,4 +346,4 @@ def delete_alarms(instance_id):
         # If any other exceptions which we didn't expect are raised
         # then fail and log the exception message.
         logger.error(
-            'Error deleting alarms for instance {}!: {}'.format(instance_id, e))
+            'Error deleting alarms for {}!: {}'.format(name, e))
