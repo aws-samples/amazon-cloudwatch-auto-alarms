@@ -1,4 +1,4 @@
-## CloudWatchAutoAlarms - Automatically create a set of CloudWatch alarms with tagging
+# CloudWatchAutoAlarms - Automatically create a set of CloudWatch alarms with tagging
 
 ![CloudWatchAutoAlarms Architecture Diagram](./CloudWatchAutoAlarmsArchitecture.png)
 
@@ -135,7 +135,7 @@ For Amazon EC2 instances, you must add this tag during instance launch or you ca
 For AWS Lambda, you can add this tag to an AWS Lambda function at any time in order to create the default alarm set as well as any custom, function specific alarms.
 
 
-### Changing the default alarm set
+## Changing the default alarm set
 You can add, remove, and customize alarms in the default alarm set.  The default alarms are defined in the **default_alarms** python dictionary in [cw_auto_alarms.py](src/cw_auto_alarms.py).  
 
 In order to create an alarm, you must uniquely identify the metric that you want to alarm on.  Standard Amazon EC2 metrics include the **InstanceId** dimension to uniquely identify each standard metric associated with an EC2 instance.  If you want to add an alarm based upon a standard EC2 instance metric, then you can use the tag name syntax:
@@ -150,7 +150,7 @@ AutoAlarm-AWS/Lambda-\<**MetricName**>-\<**ComparisonOperator**>-\<**Period**>-\
 
 You can add any standard Amazon CloudWatch metric for Amazon EC2 or AWS Lambda into the **default_alarms** dictionary under the **AWS/EC2** or **AWS/Lambda** dictionary key using this tag syntax.
 
-#### Alarming on custom Amazon EC2 metrics
+## Alarming on custom Amazon EC2 metrics
 Metrics captured by the Amazon CloudWatch agent are considered custom metrics.  These metrics are created in the **CWAgent** namespace by default.  Custom metrics may have any number of dimensions in order to uniquely identify a metric.  Additionally, the metric dimensions may be named differently based upon the underlying platform for the EC2 instance.
 
 For example, the metric name used to measure the disk space utilization is named **disk_used_percent** in Linux and **LogicalDisk % Free Space** in Windows.  The dimensions are also different, in Linux you must also include the **device**, **fstype**, and **path** dimensions in order to uniquely identify a disk.  In Windows, you must include the **objectname** and **instance** dimensions.
@@ -171,7 +171,7 @@ This syntax and approach allows you to collectively support metrics with differe
 
 You should also make sure that the **CLOUDWATCH_APPEND_DIMENSIONS** environment variable is set correctly in order to ensure that created alarms include these dimensions.  The lambda function will dynamically lookup the values for these dimensions at runtime.
 
-### Create a specific alarm for a specific EC2 instance using tags
+## Create a specific alarm for a specific EC2 instance using tags
 
 You can create alarms that are specific to an individual EC2 instance by adding a tag to the instance using the tag key syntax described in [changing the default alarm set](#changing-the-default-alarm-set).  Simply add a tag to the instance on launch or restart the instance after you have added the tag.  You can also update the thresholds for created alarms by updating the tag values, causing the alarm to be updated when the instance is stopped and started.
 
@@ -183,7 +183,7 @@ For example, to add an alarm for the Amazon EC2 **StatusCheckFailed** CloudWatch
 
 3. After the instance is stopped and restarted, go to the **Alarms** page in the CloudWatch console to confirm that the alarm was created.  You should find a new alarm named **AutoAlarm-<instance id omitted>-StatusCheckFailed-GreaterThanThreshold-1-5m**.
 
-### Creating a specific alarm for a specific AWS Lambda function using tags
+## Creating a specific alarm for a specific AWS Lambda function using tags
 
 You can create alarms that are specific to an individual AWS Lambda function by adding a tag to the instance using the tag key syntax described in [changing the default alarm set](#changing-the-default-alarm-set).
 
