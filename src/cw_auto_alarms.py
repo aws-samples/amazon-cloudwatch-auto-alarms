@@ -8,6 +8,8 @@ create_alarm_tag = getenv("ALARM_TAG", "Create_Auto_Alarms")
 
 cw_namespace = getenv("CLOUDWATCH_NAMESPACE", "CWAgent")
 
+create_default_alarms_flag = getenv("CREATE_DEFAULT_ALARMS", "true").lower()
+
 append_dimensions = getenv("CLOUDWATCH_APPEND_DIMENSIONS", 'InstanceId, ImageId, InstanceType')
 append_dimensions = [dimension.strip() for dimension in append_dimensions.split(',')]
 
@@ -21,7 +23,6 @@ alarm_lambda_error_threshold = getenv("ALARM_LAMBDA_ERROR_THRESHOLD", "1")
 alarm_lambda_throttles_threshold = getenv("ALARM_LAMBDA_THROTTLE_THRESHOLD", "1")
 alarm_lambda_dead_letter_error_threshold = getenv("ALARM_LAMBDA_DEAD_LETTER_ERROR_THRESHOLD", "1")
 alarm_lambda_destination_delivery_failure_threshold = getenv("ALARM_LAMBDA_DESTINATION_DELIVERY_FAILURE_THRESHOLD", "1")
-
 
 sns_topic_arn = getenv("DEFAULT_ALARM_SNS_TOPIC_ARN", None)
 
@@ -126,7 +127,7 @@ def lambda_handler(event, context):
             # instance has been tagged for alarming, confirm an alarm doesn't already exist
             if instance_info:
                 process_alarm_tags(instance_id, instance_info, default_alarms, metric_dimensions_map, sns_topic_arn,
-                                   cw_namespace)
+                                   cw_namespace, create_default_alarms_flag)
         elif 'source' in event and event['source'] == 'aws.ec2' and event['detail']['state'] == 'terminated':
             instance_id = event['detail']['instance-id']
             result = delete_alarms(instance_id)

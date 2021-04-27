@@ -42,6 +42,7 @@ Resources:
       Environment:
         Variables:
           ALARM_TAG: Create_Auto_Alarms
+          CREATE_DEFAULT_ALARMS: true
           CLOUDWATCH_NAMESPACE: CWAgent
           ALARM_CPU_HIGH_THRESHOLD: 75
           ALARM_CPU_CREDIT_BALANCE_LOW_THRESHOLD: 100
@@ -53,7 +54,6 @@ Resources:
           ALARM_LAMBDA_THROTTLE_THRESHOLD: 0
 
           DEFAULT_ALARM_SNS_TOPIC_ARN: !If [ConfigureAlarmNotifications, !Ref AlarmNotificationARN, !Ref "AWS::NoValue"]
-
 
   CloudWatchAutoAlarmLambdaRole:
     Type: AWS::IAM::Role
