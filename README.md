@@ -159,7 +159,7 @@ For example, the metric name used to measure the disk space utilization is named
 
 Consequently, it is more difficult to automatically create alarms across different platforms for custom CloudWatch EC2 instance metrics.  
 
-For example, the **disk_used_percent** metric for Linux has the additional dimensions:  **\'device', 'fstype', 'path'**.  For metrics with custom dimensions, you can include the dimension name and value in the tag key syntax:  
+The **disk_used_percent** metric for Linux has the additional dimensions:  **\'device', 'fstype', 'path'**.  For metrics with custom dimensions, you can include the dimension name and value in the tag key syntax:  
 
 AutoAlarm-\<**Namespace**>-\<**MetricName**>-\<**DimensionName-DimensionValue...**>-\<**ComparisonOperator**>-\<**Period**>-\<**Statistic**> 
 
@@ -173,6 +173,7 @@ This syntax and approach allows you to collectively support metrics with differe
 
 You should also make sure that the **CLOUDWATCH_APPEND_DIMENSIONS** environment variable is set correctly in order to ensure that created alarms include these dimensions.  The lambda function will dynamically lookup the values for these dimensions at runtime.
 
+If your dimensions name uses the default separator character '-', then you can update the **alarm_separator** variable in [cw_auto_alarms.py](./cw_auto_alarms.py) with an alternative seperator character such as '~'.
 ## Create a specific alarm for a specific EC2 instance using tags
 
 You can create alarms that are specific to an individual EC2 instance by adding a tag to the instance using the tag key syntax described in [changing the default alarm set](#changing-the-default-alarm-set).  Simply add a tag to the instance on launch or restart the instance after you have added the tag.  You can also update the thresholds for created alarms by updating the tag values, causing the alarm to be updated when the instance is stopped and started.
