@@ -78,7 +78,7 @@ def check_alarm_tag(instance_id, tag_key):
         raise
 
 
-def process_lambda_alarms(function_name, tags, activation_tag, default_alarms, sns_topic_arn):
+def process_lambda_alarms(function_name, tags, activation_tag, default_alarms, sns_topic_arn, alarm_separator):
     activation_tag = tags.get(activation_tag, 'not_found')
     if activation_tag == 'not_found':
         logger.debug('Activation tag not found for {}, nothing to do'.format(function_name))
@@ -99,7 +99,7 @@ def process_lambda_alarms(function_name, tags, activation_tag, default_alarms, s
         )
 
         for tag in default_alarms['AWS/Lambda']:
-            alarm_properties = tag['Key'].split('-')
+            alarm_properties = tag['Key'].split(alarm_separator)
             Namespace = alarm_properties[1]
             MetricName = alarm_properties[2]
             ComparisonOperator = alarm_properties[3]
@@ -113,8 +113,8 @@ def process_lambda_alarms(function_name, tags, activation_tag, default_alarms, s
                          dimensions, sns_topic_arn)
 
 
-def create_alarm_from_tag(id, alarm_tag, instance_info, metric_dimensions_map, sns_topic_arn):
-    alarm_properties = alarm_tag['Key'].split('-')
+def create_alarm_from_tag(id, alarm_tag, instance_info, metric_dimensions_map, sns_topic_arn, alarm_separator):
+    alarm_properties = alarm_tag['Key'].split(alarm_separator)
     namespace = alarm_properties[1]
     MetricName = alarm_properties[2]
     dimensions = list()
@@ -183,7 +183,7 @@ def create_alarm_from_tag(id, alarm_tag, instance_info, metric_dimensions_map, s
 
 
 def process_alarm_tags(instance_id, instance_info, default_alarms, metric_dimensions_map, sns_topic_arn, cw_namespace,
-                       create_default_alarms_flag):
+                       create_default_alarms_flag, alarm_separator):
     tags = instance_info['Tags']
 
     ImageId = instance_info['ImageId']
@@ -194,15 +194,15 @@ def process_alarm_tags(instance_id, instance_info, default_alarms, metric_dimens
     custom_alarms = dict()
     # get all alarm tags from instance and add them into a custom tag list
     for instance_tag in tags:
-        if instance_tag['Key'].startswith('AutoAlarm-AWS/EC2'):
-            create_alarm_from_tag(instance_id, instance_tag, instance_info, metric_dimensions_map, sns_topic_arn)
+        if instance_tag['Key'].startswith('AutoAlarm'):
+            create_alarm_from_tag(instance_id, instance_tag, instance_info, metric_dimensions_map, sns_topic_arn, alarm_separator)
 
     if create_default_alarms_flag == 'true':
         for alarm_tag in default_alarms['AWS/EC2']:
-            create_alarm_from_tag(instance_id, alarm_tag, instance_info, metric_dimensions_map, sns_topic_arn)
+            create_alarm_from_tag(instance_id, alarm_tag, instance_info, metric_dimensions_map, sns_topic_arn, alarm_separator)
 
         for alarm_tag in default_alarms[cw_namespace][platform]:
-            create_alarm_from_tag(instance_id, alarm_tag, instance_info, metric_dimensions_map, sns_topic_arn)
+            create_alarm_from_tag(instance_id, alarm_tag, instance_info, metric_dimensions_map, sns_topic_arn, alarm_separator)
     else:
         logger.info("Default alarm creation is turned off")
 

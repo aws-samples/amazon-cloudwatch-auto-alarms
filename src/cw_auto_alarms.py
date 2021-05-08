@@ -26,26 +26,32 @@ alarm_lambda_destination_delivery_failure_threshold = getenv("ALARM_LAMBDA_DESTI
 
 sns_topic_arn = getenv("DEFAULT_ALARM_SNS_TOPIC_ARN", None)
 
+alarm_separator = '-'
+alarm_identifier = 'AutoAlarm'
 # For Redhat, the default device is xvda2, xfs, for Ubuntu, the default fstype is ext4,
 # for Amazon Linux, the default device is xvda1, xfs
 default_alarms = {
     'AWS/EC2': [
         {
-            'Key': 'AutoAlarm-AWS/EC2-CPUUtilization-GreaterThanThreshold-5m-Average',
+            'Key': alarm_separator.join(
+                [alarm_identifier, 'AWS/EC2', 'CPUUtilization', 'GreaterThanThreshold', '5m', 'Average']),
             'Value': alarm_cpu_high_default_threshold
         },
         {
-            'Key': 'AutoAlarm-AWS/EC2-CPUCreditBalance-LessThanThreshold-5m-Average',
+            'Key': alarm_separator.join(
+                [alarm_identifier, 'AWS/EC2', 'CPUCreditBalance', 'LessThanThreshold', '5m', 'Average']),
             'Value': alarm_credit_balance_low_default_threshold
         }
     ],
     'AWS/Lambda': [
         {
-            'Key': 'AutoAlarm-AWS/Lambda-Errors-GreaterThanThreshold-5m-Average',
+            'Key': alarm_separator.join(
+                [alarm_identifier, 'AWS/Lambda', 'Errors', 'GreaterThanThreshold', '5m', 'Average']),
             'Value': alarm_lambda_error_threshold
         },
         {
-            'Key': 'AutoAlarm-AWS/Lambda-Throttles-GreaterThanThreshold-5m-Average',
+            'Key': alarm_separator.join(
+                [alarm_identifier, 'AWS/Lambda', 'Throttles', 'GreaterThanThreshold', '5m', 'Average']),
             'Value': alarm_lambda_throttles_threshold
         }
     ],
@@ -53,57 +59,67 @@ default_alarms = {
         'Windows': [
 
             {
-                'Key': 'AutoAlarm-{}-LogicalDisk % Free Space-objectname-LogicalDisk-instance-C:-LessThanThreshold-5m-Average'.format(
-                    cw_namespace),
+                'Key': alarm_separator.join(
+                    [alarm_identifier, cw_namespace, 'LogicalDisk % Free Space', 'objectname', 'LogicalDisk',
+                     'instance', 'C:', 'LessThanThreshold', '5m', 'Average']),
                 'Value': alarm_disk_space_percent_free_threshold
             },
             {
-                'Key': 'AutoAlarm-{}-Memory % Committed Bytes In Use-objectname-Memory-GreaterThanThreshold-5m-Average'.format(
-                    cw_namespace),
+                'Key': alarm_separator.join(
+                    [alarm_identifier, cw_namespace, 'Memory % Committed Bytes In Use', 'objectname', 'Memory',
+                     'instance', 'GreaterThanThreshold', '5m', 'Average']),
                 'Value': alarm_memory_high_default_threshold
             }
         ],
         'Amazon Linux': [
             {
-                'Key': 'AutoAlarm-{}-disk_used_percent-device-xvda1-fstype-xfs-path-/-GreaterThanThreshold-5m-Average'.format(
-                    cw_namespace),
+                'Key': alarm_separator.join(
+                    [alarm_identifier, cw_namespace, 'disk_used_percent', 'device', 'xvda1', 'fstype', 'xfs', 'path',
+                     '/', 'GreaterThanThreshold', '5m', 'Average']),
                 'Value': alarm_disk_used_percent_threshold
             },
             {
-                'Key': 'AutoAlarm-{}-mem_used_percent-GreaterThanThreshold-5m-Average'.format(cw_namespace),
+                'Key': alarm_separator.join(
+                    [alarm_identifier, cw_namespace, 'mem_used_percent', 'GreaterThanThreshold', '5m', 'Average']),
                 'Value': alarm_memory_high_default_threshold
             }
         ],
         'Red Hat': [
             {
-                'Key': 'AutoAlarm-{}-disk_used_percent-device-xvda2-fstype-xfs-path-/-GreaterThanThreshold-5m-Average'.format(
-                    cw_namespace),
+                'Key': alarm_separator.join(
+                    [alarm_identifier, cw_namespace, 'disk_used_percent', 'device', 'xvda2', 'fstype', 'xfs', 'path',
+                     '/', 'GreaterThanThreshold', '5m', 'Average']),
                 'Value': alarm_disk_used_percent_threshold
             },
             {
-                'Key': 'AutoAlarm-{}-mem_used_percent-GreaterThanThreshold-5m-Average'.format(cw_namespace),
+                'Key': alarm_separator.join(
+                    [alarm_identifier, cw_namespace, 'mem_used_percent', 'GreaterThanThreshold', '5m', 'Average']),
                 'Value': alarm_memory_high_default_threshold
             }
         ],
         'Ubuntu': [
             {
-                'Key': 'AutoAlarm-{}-disk_used_percent-device-xvda1-fstype-ext4-path-/-GreaterThanThreshold-5m-Average'.format(
-                    cw_namespace),
+                'Key': alarm_separator.join(
+                    [alarm_identifier, cw_namespace, 'disk_used_percent', 'device', 'xvda1', 'fstype', 'ext4', 'path',
+                     '/', 'GreaterThanThreshold', '5m', 'Average']),
                 'Value': alarm_disk_used_percent_threshold
             },
             {
-                'Key': 'AutoAlarm-{}-mem_used_percent-GreaterThanThreshold-5m-Average'.format(cw_namespace),
+                'Key': alarm_separator.join(
+                    [alarm_identifier, cw_namespace, 'mem_used_percent', 'GreaterThanThreshold', '5m', 'Average']),
                 'Value': alarm_memory_high_default_threshold
             }
         ],
         'SUSE': [
             {
-                'Key': 'AutoAlarm-{}-disk_used_percent-device-xvda1-fstype-xfs-path-/-GreaterThanThreshold-5m-Average'.format(
-                    cw_namespace),
+                'Key': alarm_separator.join(
+                    [alarm_identifier, cw_namespace, 'disk_used_percent', 'device', 'xvda1', 'fstype', 'xfs', 'path',
+                     '/', 'GreaterThanThreshold', '5m', 'Average']),
                 'Value': alarm_disk_used_percent_threshold
             },
             {
-                'Key': 'AutoAlarm-{}-mem_used_percent-GreaterThanThreshold-5m-Average'.format(cw_namespace),
+                'Key': alarm_separator.join(
+                    [alarm_identifier, cw_namespace, 'mem_used_percent', 'GreaterThanThreshold', '5m', 'Average']),
                 'Value': alarm_memory_high_default_threshold
             }
         ]
@@ -127,7 +143,7 @@ def lambda_handler(event, context):
             # instance has been tagged for alarming, confirm an alarm doesn't already exist
             if instance_info:
                 process_alarm_tags(instance_id, instance_info, default_alarms, metric_dimensions_map, sns_topic_arn,
-                                   cw_namespace, create_default_alarms_flag)
+                                   cw_namespace, create_default_alarms_flag, alarm_separator)
         elif 'source' in event and event['source'] == 'aws.ec2' and event['detail']['state'] == 'terminated':
             instance_id = event['detail']['instance-id']
             result = delete_alarms(instance_id)
@@ -137,7 +153,7 @@ def lambda_handler(event, context):
                 'Tag Lambda Function event occurred, tags are: {}'.format(event['detail']['requestParameters']['tags']))
             tags = event['detail']['requestParameters']['tags']
             function = event['detail']['requestParameters']['resource'].split(":")[-1]
-            process_lambda_alarms(function, tags, create_alarm_tag, default_alarms, sns_topic_arn)
+            process_lambda_alarms(function, tags, create_alarm_tag, default_alarms, sns_topic_arn, alarm_separator)
         elif 'source' in event and event['source'] == 'aws.lambda' and event['detail'][
             'eventName'] == 'DeleteFunction20150331':
             function = event['detail']['requestParameters']['functionName']
