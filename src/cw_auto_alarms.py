@@ -1,5 +1,5 @@
 import logging
-from actions import check_alarm_tag, process_alarm_tags, delete_alarms, process_lambda_alarms
+from actions import check_alarm_tag, process_alarm_tags, delete_alarms, process_lambda_alarms, scan_and_process_alarm_tags
 from os import getenv
 
 logger = logging.getLogger()
@@ -159,6 +159,12 @@ def lambda_handler(event, context):
             function = event['detail']['requestParameters']['functionName']
             logger.debug('Delete Lambda Function event occurred for: {}'.format(function))
             result = delete_alarms(function)
+        elif  'action' in event and event['action'] == 'scan':
+            logger.debug(
+                f'Scanning for EC2 instances with tag: {create_alarm_tag} to create alarm'
+            )
+            scan_and_process_alarm_tags(create_alarm_tag, default_alarms, metric_dimensions_map, sns_topic_arn,
+                                   cw_namespace, create_default_alarms_flag, alarm_separator)
 
     except Exception as e:
         # If any other exceptions which we didn't expect are raised
