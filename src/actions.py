@@ -326,3 +326,22 @@ def delete_alarms(name):
         # then fail and log the exception message.
         logger.error(
             'Error deleting alarms for {}!: {}'.format(name, e))
+
+def scan_and_process_alarm_tags(create_alarm_tag, default_alarms, metric_dimensions_map, sns_topic_arn,
+                                   cw_namespace, create_default_alarms_flag, alarm_separator):
+    try:
+        ec2_client = boto3_client('ec2')
+        for reservation in ec2_client.describe_instances()["Reservations"]:
+            for instance in reservation["Instances"]:
+                # Look for running instances only
+                if instance["State"]["Code"]>16:
+                    continue
+                if check_alarm_tag(instance["InstanceId"], create_alarm_tag):
+                    process_alarm_tags(instance["InstanceId"], instance, default_alarms, metric_dimensions_map,
+                     sns_topic_arn, cw_namespace, create_default_alarms_flag, alarm_separator)
+
+    except Exception as e:
+        # If any other exceptions which we didn't expect are raised
+        # then fail and log the exception message.
+        logger.error('Failure describing reservations : {}'.format(e))
+        raise
