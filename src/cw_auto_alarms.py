@@ -67,7 +67,7 @@ default_alarms = {
             {
                 'Key': alarm_separator.join(
                     [alarm_identifier, cw_namespace, 'Memory % Committed Bytes In Use', 'objectname', 'Memory',
-                     'instance', 'GreaterThanThreshold', '5m', 'Average']),
+                     'GreaterThanThreshold', '5m', 'Average']),
                 'Value': alarm_memory_high_default_threshold
             }
         ],
