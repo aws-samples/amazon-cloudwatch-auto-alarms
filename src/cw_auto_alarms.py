@@ -143,28 +143,28 @@ def lambda_handler(event, context):
             # instance has been tagged for alarming, confirm an alarm doesn't already exist
             if instance_info:
                 process_alarm_tags(instance_id, instance_info, default_alarms, metric_dimensions_map, sns_topic_arn,
-                                   cw_namespace, create_default_alarms_flag, alarm_separator)
+                                   cw_namespace, create_default_alarms_flag, alarm_separator, alarm_identifier)
         elif 'source' in event and event['source'] == 'aws.ec2' and event['detail']['state'] == 'terminated':
             instance_id = event['detail']['instance-id']
-            result = delete_alarms(instance_id)
+            result = delete_alarms(instance_id, alarm_identifier)
         elif 'source' in event and event['source'] == 'aws.lambda' and event['detail'][
             'eventName'] == 'TagResource20170331v2':
             logger.debug(
                 'Tag Lambda Function event occurred, tags are: {}'.format(event['detail']['requestParameters']['tags']))
             tags = event['detail']['requestParameters']['tags']
             function = event['detail']['requestParameters']['resource'].split(":")[-1]
-            process_lambda_alarms(function, tags, create_alarm_tag, default_alarms, sns_topic_arn, alarm_separator)
+            process_lambda_alarms(function, tags, create_alarm_tag, default_alarms, sns_topic_arn, alarm_separator, alarm_identifier)
         elif 'source' in event and event['source'] == 'aws.lambda' and event['detail'][
             'eventName'] == 'DeleteFunction20150331':
             function = event['detail']['requestParameters']['functionName']
             logger.debug('Delete Lambda Function event occurred for: {}'.format(function))
-            result = delete_alarms(function)
+            result = delete_alarms(function, alarm_identifier)
         elif  'action' in event and event['action'] == 'scan':
             logger.debug(
                 f'Scanning for EC2 instances with tag: {create_alarm_tag} to create alarm'
             )
             scan_and_process_alarm_tags(create_alarm_tag, default_alarms, metric_dimensions_map, sns_topic_arn,
-                                   cw_namespace, create_default_alarms_flag, alarm_separator)
+                                   cw_namespace, create_default_alarms_flag, alarm_separator, alarm_identifier)
 
     except Exception as e:
         # If any other exceptions which we didn't expect are raised
