@@ -160,17 +160,21 @@ def create_alarm_from_tag(id, alarm_tag, instance_info, metric_dimensions_map, s
 
     AlarmName = 'AutoAlarm-{}-{}-{}'.format(id, namespace, MetricName)
     properties_offset = 0
-    if additional_dimensions:
-        for num, dim in enumerate(additional_dimensions[::2]):
-            val = additional_dimensions[num * 2 + 1]
-            dimensions.append(
-                {
-                    'Name': dim,
-                    'Value': val
-                }
-            )
-            AlarmName = AlarmName + '-{}-{}'.format(dim, val)
-            properties_offset = properties_offset + 2
+    try:
+        if additional_dimensions:
+            for num, dim in enumerate(additional_dimensions[::2]):
+                val = additional_dimensions[num * 2 + 1]
+                dimensions.append(
+                    {
+                        'Name': dim,
+                        'Value': val
+                    }
+                )
+                AlarmName = AlarmName + '-{}-{}'.format(dim, val)
+                properties_offset = properties_offset + 2
+    except Exception as e:
+        logger.error('Getting dimensions: {}'.format(e))
+        raise
 
     ComparisonOperator = alarm_properties[(properties_offset + 3)]
     Period = alarm_properties[(properties_offset + 4)]
