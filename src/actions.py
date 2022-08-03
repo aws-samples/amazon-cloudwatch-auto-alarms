@@ -159,8 +159,8 @@ def create_alarm_from_tag(id, alarm_tag, instance_info, metric_dimensions_map, s
         raise Exception
 
     AlarmName = alarm_separator.join([alarm_identifier, id, namespace, MetricName])
-
     properties_offset = 0
+
     if additional_dimensions:
         for num, dim in enumerate(additional_dimensions[::2]):
             val = additional_dimensions[num * 2 + 1]
