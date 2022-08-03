@@ -106,8 +106,9 @@ def process_lambda_alarms(function_name, tags, activation_tag, default_alarms, s
             Period = alarm_properties[4]
             Statistic = alarm_properties[5]
 
-            AlarmName = '{}-{}-{}-{}-{}-{}-{}'.format(alarm_identifier, function_name, Namespace, MetricName, ComparisonOperator,
-                                                        Period, Statistic)
+            AlarmName = alarm_separator.join([alarm_identifier, function_name, Namespace, MetricName, ComparisonOperator,
+                                                Period, Statistic])
+
             create_alarm(AlarmName, MetricName, ComparisonOperator, Period, tag['Value'], Statistic, Namespace,
                          dimensions, sns_topic_arn, alarm_identifier)
 
@@ -157,7 +158,8 @@ def create_alarm_from_tag(id, alarm_tag, instance_info, metric_dimensions_map, s
         logger.error('Unable to determine the dimensions for alarm tag: {}'.format(alarm_tag))
         raise Exception
 
-    AlarmName = '{}-{}-{}-{}'.format(alarm_identifier, id, namespace, MetricName)
+    AlarmName = alarm_separator.join([alarm_identifier, id, namespace, MetricName])
+
     properties_offset = 0
     if additional_dimensions:
         for num, dim in enumerate(additional_dimensions[::2]):
@@ -168,14 +170,14 @@ def create_alarm_from_tag(id, alarm_tag, instance_info, metric_dimensions_map, s
                     'Value': val
                 }
             )
-            AlarmName = AlarmName + '-{}-{}'.format(dim, val)
+            AlarmName = AlarmName + alarm_separator.join(['', dim, val])
             properties_offset = properties_offset + 2
 
     ComparisonOperator = alarm_properties[(properties_offset + 3)]
     Period = alarm_properties[(properties_offset + 4)]
     Statistic = alarm_properties[(properties_offset + 5)]
 
-    AlarmName = AlarmName + '-{}-{}-{}'.format(ComparisonOperator, Period, Statistic)
+    AlarmName = AlarmName + alarm_separator.join(['', ComparisonOperator, Period, Statistic])
 
     create_alarm(AlarmName, MetricName, ComparisonOperator, Period, alarm_tag['Value'], Statistic, namespace,
                  dimensions, sns_topic_arn)
@@ -301,9 +303,9 @@ def create_alarm(AlarmName, MetricName, ComparisonOperator, Period, Threshold, S
             'Error creating alarm {}!: {}'.format(AlarmName, e))
 
 
-def delete_alarms(name, alarm_identifier):
+def delete_alarms(name, alarm_identifier, alarm_separator):
     try:
-        AlarmNamePrefix = "{}-{}".format(alarm_identifier, name)
+        AlarmNamePrefix = alarm_separator.join([alarm_identifier, name])
         cw_client = boto3_client('cloudwatch')
         logger.info('calling describe alarms with prefix {}'.format(AlarmNamePrefix))
         response = cw_client.describe_alarms(

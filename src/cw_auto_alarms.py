@@ -146,7 +146,7 @@ def lambda_handler(event, context):
                                    cw_namespace, create_default_alarms_flag, alarm_separator, alarm_identifier)
         elif 'source' in event and event['source'] == 'aws.ec2' and event['detail']['state'] == 'terminated':
             instance_id = event['detail']['instance-id']
-            result = delete_alarms(instance_id, alarm_identifier)
+            result = delete_alarms(instance_id, alarm_identifier, alarm_separator)
         elif 'source' in event and event['source'] == 'aws.lambda' and event['detail'][
             'eventName'] == 'TagResource20170331v2':
             logger.debug(
@@ -158,7 +158,7 @@ def lambda_handler(event, context):
             'eventName'] == 'DeleteFunction20150331':
             function = event['detail']['requestParameters']['functionName']
             logger.debug('Delete Lambda Function event occurred for: {}'.format(function))
-            result = delete_alarms(function, alarm_identifier)
+            result = delete_alarms(function, alarm_identifier, alarm_separator)
         elif  'action' in event and event['action'] == 'scan':
             logger.debug(
                 f'Scanning for EC2 instances with tag: {create_alarm_tag} to create alarm'
