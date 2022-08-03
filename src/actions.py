@@ -170,14 +170,14 @@ def create_alarm_from_tag(id, alarm_tag, instance_info, metric_dimensions_map, s
                     'Value': val
                 }
             )
-            AlarmName = AlarmName + alarm_separator.join(['', dim, val])
+            AlarmName += alarm_separator.join(['', dim, val])
             properties_offset = properties_offset + 2
 
     ComparisonOperator = alarm_properties[(properties_offset + 3)]
     Period = alarm_properties[(properties_offset + 4)]
     Statistic = alarm_properties[(properties_offset + 5)]
 
-    AlarmName = AlarmName + alarm_separator.join(['', ComparisonOperator, Period, Statistic])
+    AlarmName += alarm_separator.join(['', ComparisonOperator, Period, Statistic])
 
     create_alarm(AlarmName, MetricName, ComparisonOperator, Period, alarm_tag['Value'], Statistic, namespace,
                  dimensions, sns_topic_arn)
