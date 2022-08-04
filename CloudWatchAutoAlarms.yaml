@@ -83,11 +83,11 @@ Resources:
                   - logs:CreateLogStream
                   - logs:PutLogEvents
                   - logs:DescribeLogGroups
-                Resource: !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:*"
+                Resource: !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:*"
               - Effect: Allow
                 Action:
                   - logs:PutLogEvents
-                Resource: !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:*:log-stream:*"
+                Resource: !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:*:log-stream:*"
               - Effect: Allow
                 Action:
                   - ec2:DescribeInstances
@@ -96,13 +96,13 @@ Resources:
               - Effect: Allow
                 Action:
                   - ec2:CreateTags
-                Resource: !Sub "arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:instance/*"
+                Resource: !Sub "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/*"
               - Effect: Allow
                 Action:
                   - cloudwatch:DescribeAlarms
                   - cloudwatch:DeleteAlarms
                   - cloudwatch:PutMetricAlarm
-                Resource:  !Sub "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:AutoAlarm-*"
+                Resource:  !Sub "arn:${AWS::Partition}:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:AutoAlarm-*"
               - Effect: Allow
                 Action:
                   - cloudwatch:DescribeAlarms

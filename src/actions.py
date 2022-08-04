@@ -78,7 +78,7 @@ def check_alarm_tag(instance_id, tag_key):
         raise
 
 
-def process_lambda_alarms(function_name, tags, activation_tag, default_alarms, sns_topic_arn, alarm_separator):
+def process_lambda_alarms(function_name, tags, activation_tag, default_alarms, sns_topic_arn, alarm_separator, alarm_identifier):
     activation_tag = tags.get(activation_tag, 'not_found')
     if activation_tag == 'not_found':
         logger.debug('Activation tag not found for {}, nothing to do'.format(function_name))
@@ -86,7 +86,7 @@ def process_lambda_alarms(function_name, tags, activation_tag, default_alarms, s
     else:
         logger.debug('Processing function specific alarms for: {}'.format(default_alarms))
         for tag_key in tags:
-            if tag_key.startswith('AutoAlarm'):
+            if tag_key.startswith(alarm_identifier):
                 default_alarms['AWS/Lambda'].append({'Key': tag_key, 'Value': tags[tag_key]})
 
         # get the default dimensions for AWS/EC2
@@ -106,14 +106,14 @@ def process_lambda_alarms(function_name, tags, activation_tag, default_alarms, s
             Period = alarm_properties[4]
             Statistic = alarm_properties[5]
 
-            AlarmName = 'AutoAlarm-{}-{}-{}-{}-{}-{}'.format(function_name, Namespace, MetricName, ComparisonOperator,
-                                                             Period,
-                                                             Statistic)
+            AlarmName = alarm_separator.join([alarm_identifier, function_name, Namespace, MetricName, ComparisonOperator,
+                                                Period, Statistic])
+
             create_alarm(AlarmName, MetricName, ComparisonOperator, Period, tag['Value'], Statistic, Namespace,
-                         dimensions, sns_topic_arn)
+                         dimensions, sns_topic_arn, alarm_identifier)
 
 
-def create_alarm_from_tag(id, alarm_tag, instance_info, metric_dimensions_map, sns_topic_arn, alarm_separator):
+def create_alarm_from_tag(id, alarm_tag, instance_info, metric_dimensions_map, sns_topic_arn, alarm_separator, alarm_identifier):
     alarm_properties = alarm_tag['Key'].split(alarm_separator)
     namespace = alarm_properties[1]
     MetricName = alarm_properties[2]
@@ -158,7 +158,7 @@ def create_alarm_from_tag(id, alarm_tag, instance_info, metric_dimensions_map, s
         logger.error('Unable to determine the dimensions for alarm tag: {}'.format(alarm_tag))
         raise Exception
 
-    AlarmName = 'AutoAlarm-{}-{}-{}'.format(id, namespace, MetricName)
+    AlarmName = alarm_separator.join([alarm_identifier, id, namespace, MetricName])
     properties_offset = 0
     try:
         if additional_dimensions:
@@ -170,7 +170,7 @@ def create_alarm_from_tag(id, alarm_tag, instance_info, metric_dimensions_map, s
                         'Value': val
                     }
                 )
-                AlarmName = AlarmName + '-{}-{}'.format(dim, val)
+                AlarmName += alarm_separator.join(['', dim, val])
                 properties_offset = properties_offset + 2
     except Exception as e:
         logger.error('Getting dimensions: {}'.format(e))
@@ -180,14 +180,14 @@ def create_alarm_from_tag(id, alarm_tag, instance_info, metric_dimensions_map, s
     Period = alarm_properties[(properties_offset + 4)]
     Statistic = alarm_properties[(properties_offset + 5)]
 
-    AlarmName = AlarmName + '-{}-{}-{}'.format(ComparisonOperator, Period, Statistic)
+    AlarmName += alarm_separator.join(['', ComparisonOperator, Period, Statistic])
 
     create_alarm(AlarmName, MetricName, ComparisonOperator, Period, alarm_tag['Value'], Statistic, namespace,
                  dimensions, sns_topic_arn)
 
 
 def process_alarm_tags(instance_id, instance_info, default_alarms, metric_dimensions_map, sns_topic_arn, cw_namespace,
-                       create_default_alarms_flag, alarm_separator):
+                       create_default_alarms_flag, alarm_separator, alarm_identifier):
     tags = instance_info['Tags']
 
     ImageId = instance_info['ImageId']
@@ -198,15 +198,15 @@ def process_alarm_tags(instance_id, instance_info, default_alarms, metric_dimens
     custom_alarms = dict()
     # get all alarm tags from instance and add them into a custom tag list
     for instance_tag in tags:
-        if instance_tag['Key'].startswith('AutoAlarm'):
-            create_alarm_from_tag(instance_id, instance_tag, instance_info, metric_dimensions_map, sns_topic_arn, alarm_separator)
+        if instance_tag['Key'].startswith(alarm_identifier):
+            create_alarm_from_tag(instance_id, instance_tag, instance_info, metric_dimensions_map, sns_topic_arn, alarm_separator, alarm_identifier)
 
     if create_default_alarms_flag == 'true':
         for alarm_tag in default_alarms['AWS/EC2']:
-            create_alarm_from_tag(instance_id, alarm_tag, instance_info, metric_dimensions_map, sns_topic_arn, alarm_separator)
+            create_alarm_from_tag(instance_id, alarm_tag, instance_info, metric_dimensions_map, sns_topic_arn, alarm_separator, alarm_identifier)
 
         for alarm_tag in default_alarms[cw_namespace][platform]:
-            create_alarm_from_tag(instance_id, alarm_tag, instance_info, metric_dimensions_map, sns_topic_arn, alarm_separator)
+            create_alarm_from_tag(instance_id, alarm_tag, instance_info, metric_dimensions_map, sns_topic_arn, alarm_separator, alarm_identifier)
     else:
         logger.info("Default alarm creation is turned off")
 
@@ -261,7 +261,7 @@ def convert_to_seconds(s):
         raise
 
 
-# Alarm Name Format: AutoAlarm-<InstanceId>-<Statistic>-<MetricName>-<ComparisonOperator>-<Threshold>-<Period>
+# Alarm Name Format: <AlarmIdentifier>-<InstanceId>-<Statistic>-<MetricName>-<ComparisonOperator>-<Threshold>-<Period>
 # Example:  AutoAlarm-i-00e4f327736cb077f-CPUUtilization-GreaterThanThreshold-80-5m
 def create_alarm(AlarmName, MetricName, ComparisonOperator, Period, Threshold, Statistic, Namespace, Dimensions,
                  sns_topic_arn):
@@ -306,9 +306,9 @@ def create_alarm(AlarmName, MetricName, ComparisonOperator, Period, Threshold, S
             'Error creating alarm {}!: {}'.format(AlarmName, e))
 
 
-def delete_alarms(name):
+def delete_alarms(name, alarm_identifier, alarm_separator):
     try:
-        AlarmNamePrefix = "AutoAlarm-{}".format(name)
+        AlarmNamePrefix = alarm_separator.join([alarm_identifier, name])
         cw_client = boto3_client('cloudwatch')
         logger.info('calling describe alarms with prefix {}'.format(AlarmNamePrefix))
         response = cw_client.describe_alarms(
@@ -332,7 +332,7 @@ def delete_alarms(name):
             'Error deleting alarms for {}!: {}'.format(name, e))
 
 def scan_and_process_alarm_tags(create_alarm_tag, default_alarms, metric_dimensions_map, sns_topic_arn,
-                                   cw_namespace, create_default_alarms_flag, alarm_separator):
+                                   cw_namespace, create_default_alarms_flag, alarm_separator, alarm_identifier):
     try:
         ec2_client = boto3_client('ec2')
         for reservation in ec2_client.describe_instances()["Reservations"]:
@@ -342,7 +342,7 @@ def scan_and_process_alarm_tags(create_alarm_tag, default_alarms, metric_dimensi
                     continue
                 if check_alarm_tag(instance["InstanceId"], create_alarm_tag):
                     process_alarm_tags(instance["InstanceId"], instance, default_alarms, metric_dimensions_map,
-                     sns_topic_arn, cw_namespace, create_default_alarms_flag, alarm_separator)
+                     sns_topic_arn, cw_namespace, create_default_alarms_flag, alarm_separator, alarm_identifier)
 
     except Exception as e:
         # If any other exceptions which we didn't expect are raised
