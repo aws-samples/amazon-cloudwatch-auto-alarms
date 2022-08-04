@@ -31,27 +31,29 @@ alarm_identifier = 'AutoAlarm'
 # For Redhat, the default device is xvda2, xfs, for Ubuntu, the default fstype is ext4,
 # for Amazon Linux, the default device is xvda1, xfs
 default_alarms = {
+    # default<number> added to the end of the key to  make the key unique
+    # this differentiate alarms with similar settings but different thresholds
     'AWS/EC2': [
         {
             'Key': alarm_separator.join(
-                [alarm_identifier, 'AWS/EC2', 'CPUUtilization', 'GreaterThanThreshold', '5m', 'Average']),
+                [alarm_identifier, 'AWS/EC2', 'CPUUtilization', 'GreaterThanThreshold', '5m', 'Average', 'default1']),
             'Value': alarm_cpu_high_default_threshold
         },
         {
             'Key': alarm_separator.join(
-                [alarm_identifier, 'AWS/EC2', 'CPUCreditBalance', 'LessThanThreshold', '5m', 'Average']),
+                [alarm_identifier, 'AWS/EC2', 'CPUCreditBalance', 'LessThanThreshold', '5m', 'Average', 'default1']),
             'Value': alarm_credit_balance_low_default_threshold
         }
     ],
     'AWS/Lambda': [
         {
             'Key': alarm_separator.join(
-                [alarm_identifier, 'AWS/Lambda', 'Errors', 'GreaterThanThreshold', '5m', 'Average']),
+                [alarm_identifier, 'AWS/Lambda', 'Errors', 'GreaterThanThreshold', '5m', 'Average', 'default1']),
             'Value': alarm_lambda_error_threshold
         },
         {
             'Key': alarm_separator.join(
-                [alarm_identifier, 'AWS/Lambda', 'Throttles', 'GreaterThanThreshold', '5m', 'Average']),
+                [alarm_identifier, 'AWS/Lambda', 'Throttles', 'GreaterThanThreshold', '5m', 'Average', 'default1']),
             'Value': alarm_lambda_throttles_threshold
         }
     ],
@@ -61,13 +63,13 @@ default_alarms = {
             {
                 'Key': alarm_separator.join(
                     [alarm_identifier, cw_namespace, 'LogicalDisk % Free Space', 'objectname', 'LogicalDisk',
-                     'instance', 'C:', 'LessThanThreshold', '5m', 'Average']),
+                     'instance', 'C:', 'LessThanThreshold', '5m', 'Average', 'default1']),
                 'Value': alarm_disk_space_percent_free_threshold
             },
             {
                 'Key': alarm_separator.join(
                     [alarm_identifier, cw_namespace, 'Memory % Committed Bytes In Use', 'objectname', 'Memory',
-                     'GreaterThanThreshold', '5m', 'Average']),
+                     'GreaterThanThreshold', '5m', 'Average', 'default1']),
                 'Value': alarm_memory_high_default_threshold
             }
         ],
@@ -75,12 +77,12 @@ default_alarms = {
             {
                 'Key': alarm_separator.join(
                     [alarm_identifier, cw_namespace, 'disk_used_percent', 'device', 'xvda1', 'fstype', 'xfs', 'path',
-                     '/', 'GreaterThanThreshold', '5m', 'Average']),
+                     '/', 'GreaterThanThreshold', '5m', 'Average', 'default1']),
                 'Value': alarm_disk_used_percent_threshold
             },
             {
                 'Key': alarm_separator.join(
-                    [alarm_identifier, cw_namespace, 'mem_used_percent', 'GreaterThanThreshold', '5m', 'Average']),
+                    [alarm_identifier, cw_namespace, 'mem_used_percent', 'GreaterThanThreshold', '5m', 'Average', 'default1']),
                 'Value': alarm_memory_high_default_threshold
             }
         ],
@@ -88,12 +90,12 @@ default_alarms = {
             {
                 'Key': alarm_separator.join(
                     [alarm_identifier, cw_namespace, 'disk_used_percent', 'device', 'xvda2', 'fstype', 'xfs', 'path',
-                     '/', 'GreaterThanThreshold', '5m', 'Average']),
+                     '/', 'GreaterThanThreshold', '5m', 'Average', 'default1']),
                 'Value': alarm_disk_used_percent_threshold
             },
             {
                 'Key': alarm_separator.join(
-                    [alarm_identifier, cw_namespace, 'mem_used_percent', 'GreaterThanThreshold', '5m', 'Average']),
+                    [alarm_identifier, cw_namespace, 'mem_used_percent', 'GreaterThanThreshold', '5m', 'Average', 'default1']),
                 'Value': alarm_memory_high_default_threshold
             }
         ],
@@ -101,12 +103,12 @@ default_alarms = {
             {
                 'Key': alarm_separator.join(
                     [alarm_identifier, cw_namespace, 'disk_used_percent', 'device', 'xvda1', 'fstype', 'ext4', 'path',
-                     '/', 'GreaterThanThreshold', '5m', 'Average']),
+                     '/', 'GreaterThanThreshold', '5m', 'Average', 'default1']),
                 'Value': alarm_disk_used_percent_threshold
             },
             {
                 'Key': alarm_separator.join(
-                    [alarm_identifier, cw_namespace, 'mem_used_percent', 'GreaterThanThreshold', '5m', 'Average']),
+                    [alarm_identifier, cw_namespace, 'mem_used_percent', 'GreaterThanThreshold', '5m', 'Average', 'default1']),
                 'Value': alarm_memory_high_default_threshold
             }
         ],
@@ -114,12 +116,12 @@ default_alarms = {
             {
                 'Key': alarm_separator.join(
                     [alarm_identifier, cw_namespace, 'disk_used_percent', 'device', 'xvda1', 'fstype', 'xfs', 'path',
-                     '/', 'GreaterThanThreshold', '5m', 'Average']),
+                     '/', 'GreaterThanThreshold', '5m', 'Average', 'default1']),
                 'Value': alarm_disk_used_percent_threshold
             },
             {
                 'Key': alarm_separator.join(
-                    [alarm_identifier, cw_namespace, 'mem_used_percent', 'GreaterThanThreshold', '5m', 'Average']),
+                    [alarm_identifier, cw_namespace, 'mem_used_percent', 'GreaterThanThreshold', '5m', 'Average', 'default1']),
                 'Value': alarm_memory_high_default_threshold
             }
         ]
