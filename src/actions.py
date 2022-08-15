@@ -145,7 +145,8 @@ def create_alarm_from_tag(id, alarm_tag, instance_info, metric_dimensions_map, s
 
     additional_dimensions = list()
 
-    for index, prop in enumerate(alarm_properties[3:], start=3):
+    # exclude last element which is the DESCRIPTION that differentiates alarms
+    for index, prop in enumerate(alarm_properties[3:-1], start=3):
         if prop in valid_comparators:
             prop_end_index = index
             break
@@ -181,6 +182,12 @@ def create_alarm_from_tag(id, alarm_tag, instance_info, metric_dimensions_map, s
     Statistic = alarm_properties[(properties_offset + 5)]
 
     AlarmName += alarm_separator.join(['', ComparisonOperator, Period, Statistic])
+
+    # add the description to the alarm name. If none are specified, log a message
+    try:
+        AlarmName += '-' + alarm_properties[(properties_offset + 6)]
+    except:
+        logger.info('Description not supplied')
 
     create_alarm(AlarmName, MetricName, ComparisonOperator, Period, alarm_tag['Value'], Statistic, namespace,
                  dimensions, sns_topic_arn)
