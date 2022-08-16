@@ -244,7 +244,9 @@ def determine_platform(imageid):
             logger.debug('Platform details of image: {}'.format(platform_details))
             platform = format_platform_details(platform_details)
             if not platform and 'Linux/UNIX' in platform_details:
-                if 'ubuntu' in image_info['Images'][0]['Description'].lower() or 'ubuntu' in image_info['Images'][0]['Name'].lower():
+                if 'ubuntu' in image_info['Images'][0]['Name'].lower():
+                    platform = 'Ubuntu'
+                elif 'Description' in image_info['Images'][0] and 'ubuntu' in image_info['Images'][0]['Description'].lower():
                     platform = 'Ubuntu'
                 else:
                     platform = 'Amazon Linux'
