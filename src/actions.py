@@ -249,6 +249,9 @@ def determine_platform(imageid):
                 elif 'Description' in image_info['Images'][0] and 'ubuntu' in image_info['Images'][0]['Description'].lower():
                     platform = 'Ubuntu'
                 else:
+                    # an assumption is made here that it is Amazon Linux.
+                    # note that it could still be an Ubuntu EC2 instance if the AMI is an Ubuntu image
+                    # but the Name and Description does not contain 'ubuntu'
                     platform = 'Amazon Linux'
             return platform
         else:
