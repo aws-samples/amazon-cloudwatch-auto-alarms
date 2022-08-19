@@ -185,7 +185,7 @@ def create_alarm_from_tag(id, alarm_tag, instance_info, metric_dimensions_map, s
 
     # add the description to the alarm name. If none are specified, log a message
     try:
-        AlarmName += '-' + alarm_properties[(properties_offset + 6)]
+        AlarmName += alarm_separator + alarm_properties[(properties_offset + 6)]
     except:
         logger.info('Description not supplied')
 
