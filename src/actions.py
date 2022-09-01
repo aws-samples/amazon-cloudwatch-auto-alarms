@@ -185,7 +185,7 @@ def create_alarm_from_tag(id, alarm_tag, instance_info, metric_dimensions_map, s
 
     # add the description to the alarm name. If none are specified, log a message
     try:
-        AlarmName += '-' + alarm_properties[(properties_offset + 6)]
+        AlarmName += alarm_separator + alarm_properties[(properties_offset + 6)]
     except:
         logger.info('Description not supplied')
 
@@ -200,6 +200,15 @@ def process_alarm_tags(instance_id, instance_info, default_alarms, metric_dimens
     ImageId = instance_info['ImageId']
     logger.info('ImageId is: {}'.format(ImageId))
     platform = determine_platform(ImageId)
+
+    # if platform information is unavailable via determine_platform, try the platform in instance_info
+    # determine_platform uses the describe_images API call. In some cases, the AMI may be deregistered
+    # hence, use instance_info to extract platform details. This can detect Windows, Red Hat, SUSE platforms
+    # instance_info does not contain enough information to distinguish Ubuntu and Amazon Linux platforms
+    if not platform:
+        platform_details = instance_info['PlatformDetails']
+        logger.debug('Platform details of instance: {}'.format(platform_details))
+        platform = format_platform_details(platform_details)
 
     logger.info('Platform is: {}'.format(platform))
     custom_alarms = dict()
@@ -233,20 +242,18 @@ def determine_platform(imageid):
         if 'Images' in image_info and len(image_info['Images']) > 0:
             platform_details = image_info['Images'][0]['PlatformDetails']
             logger.debug('Platform details of image: {}'.format(platform_details))
-            if 'Windows' in platform_details or 'SQL Server' in platform_details:
-                return 'Windows'
-            elif 'Red Hat' in platform_details:
-                return 'Red Hat'
-            elif 'SUSE' in platform_details:
-                return 'SUSE'
-            elif 'Linux/UNIX' in platform_details:
-                if 'ubuntu' in image_info['Images'][0]['Description'].lower() or 'ubuntu' in image_info['Images'][0][
-                    'Name'].lower():
-                    return 'Ubuntu'
+            platform = format_platform_details(platform_details)
+            if not platform and 'Linux/UNIX' in platform_details:
+                if 'ubuntu' in image_info['Images'][0]['Name'].lower():
+                    platform = 'Ubuntu'
+                elif 'Description' in image_info['Images'][0] and 'ubuntu' in image_info['Images'][0]['Description'].lower():
+                    platform = 'Ubuntu'
                 else:
-                    return 'Amazon Linux'
-            else:
-                return None
+                    # an assumption is made here that it is Amazon Linux.
+                    # note that it could still be an Ubuntu EC2 instance if the AMI is an Ubuntu image
+                    # but the Name and Description does not contain 'ubuntu'
+                    platform = 'Amazon Linux'
+            return platform
         else:
             return None
 
@@ -256,6 +263,25 @@ def determine_platform(imageid):
         logger.error('Failure describing image {}: {}'.format(imageid, e))
         raise
 
+def format_platform_details(platform_details):
+    if 'Windows' in platform_details or 'SQL Server' in platform_details:
+        return 'Windows'
+    elif 'Red Hat' in platform_details:
+        return 'Red Hat'
+    elif 'SUSE' in platform_details:
+        return 'SUSE'
+    # don't handle the Linux/UNIX case in this common function because
+    # instance_info does not have Description and Name unlike image_info
+    # hence, if the AMI is no longer available and the EC2 is an Amazon Linux or Ubuntu instance,
+    # return None which causes the Alarm creation to fail in this specific scenario
+
+    # elif 'Linux/UNIX' in platform_details:
+    #     if 'ubuntu' in image_info['Images'][0]['Description'].lower() or 'ubuntu' in image_info['Images'][0]['Name'].lower():
+    #         return 'Ubuntu'
+    #     else:
+    #         return 'Amazon Linux'
+    else:
+        return None
 
 def convert_to_seconds(s):
     try:
