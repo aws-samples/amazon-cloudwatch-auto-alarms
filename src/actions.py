@@ -220,9 +220,11 @@ def process_alarm_tags(instance_id, instance_info, default_alarms, metric_dimens
     if create_default_alarms_flag == 'true':
         for alarm_tag in default_alarms['AWS/EC2']:
             create_alarm_from_tag(instance_id, alarm_tag, instance_info, metric_dimensions_map, sns_topic_arn, alarm_separator, alarm_identifier)
-
-        for alarm_tag in default_alarms[cw_namespace][platform]:
-            create_alarm_from_tag(instance_id, alarm_tag, instance_info, metric_dimensions_map, sns_topic_arn, alarm_separator, alarm_identifier)
+        if platform:
+            for alarm_tag in default_alarms[cw_namespace][platform]:
+                create_alarm_from_tag(instance_id, alarm_tag, instance_info, metric_dimensions_map, sns_topic_arn, alarm_separator, alarm_identifier)
+        else:
+            logger.warning("Skipping platform specific alarm creation for {}, unknown platform.".format(instance_id))
     else:
         logger.info("Default alarm creation is turned off")
 

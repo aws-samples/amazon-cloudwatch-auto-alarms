@@ -3,6 +3,9 @@ from actions import check_alarm_tag, process_alarm_tags, delete_alarms, process_
 from os import getenv
 
 logger = logging.getLogger()
+log_level = getenv("LOGLEVEL", "INFO")
+level = logging.getLevelName(log_level)
+logger.setLevel(level)
 
 create_alarm_tag = getenv("ALARM_TAG", "Create_Auto_Alarms")
 
@@ -14,7 +17,6 @@ append_dimensions = getenv("CLOUDWATCH_APPEND_DIMENSIONS", 'InstanceId, ImageId,
 append_dimensions = [dimension.strip() for dimension in append_dimensions.split(',')]
 
 alarm_cpu_high_default_threshold = getenv("ALARM_CPU_HIGH_THRESHOLD", "75")
-alarm_credit_balance_low_default_threshold = getenv("ALARM_CPU_CREDIT_BALANCE_LOW_THRESHOLD", "100")
 alarm_memory_high_default_threshold = getenv("ALARM_MEMORY_HIGH_THRESHOLD", "75")
 alarm_disk_space_percent_free_threshold = getenv("ALARM_DISK_PERCENT_LOW_THRESHOLD", "20")
 alarm_disk_used_percent_threshold = 100 - int(alarm_disk_space_percent_free_threshold)
@@ -27,7 +29,7 @@ alarm_lambda_destination_delivery_failure_threshold = getenv("ALARM_LAMBDA_DESTI
 sns_topic_arn = getenv("DEFAULT_ALARM_SNS_TOPIC_ARN", None)
 
 alarm_separator = '-'
-alarm_identifier = 'AutoAlarm'
+alarm_identifier = getenv("ALARM_IDENTIFIER_PREFIX", 'AutoAlarm')
 # For Redhat, the default device is xvda2, xfs, for Ubuntu, the default fstype is ext4,
 # for Amazon Linux, the default device is xvda1, xfs
 default_alarms = {
@@ -38,11 +40,6 @@ default_alarms = {
             'Key': alarm_separator.join(
                 [alarm_identifier, 'AWS/EC2', 'CPUUtilization', 'GreaterThanThreshold', '5m', 'Average', 'default1']),
             'Value': alarm_cpu_high_default_threshold
-        },
-        {
-            'Key': alarm_separator.join(
-                [alarm_identifier, 'AWS/EC2', 'CPUCreditBalance', 'LessThanThreshold', '5m', 'Average', 'default1']),
-            'Value': alarm_credit_balance_low_default_threshold
         }
     ],
     'AWS/Lambda': [
