@@ -35,6 +35,46 @@ def boto3_client(resource, assumed_credentials=None):
     return client
 
 
+def retrieve_ec2_instances(tag_key):
+    try:
+        ec2_client = boto3_client('ec2')
+        paginator = ec2_client.get_paginator('describe_instances')
+        response_iterator = paginator.paginate(
+            Filters=[
+                {
+                    'Name': 'tag-key',
+                    'Values': [
+                        tag_key
+                    ]
+                }
+            ],
+        )
+        instance_list = []
+        for i in response_iterator:
+            if 'Reservations' in i and len(i['Reservations']) > 0:
+                for reservation in i['Reservations']:
+                    instance_list.extend(reservation['Instances'])
+                    instance_ids = [instance['InstanceId'] for instance in reservation['Instances']]
+                    logger.debug("Instance IDs matching alarm tag: {}".format(instance_ids))
+                    # can handle up to 1K resource ids...
+                    # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html#EC2.ServiceResource.create_tags
+                    ec2_client.create_tags(
+                        Resources=instance_ids,
+                        Tags=[
+                            {
+                                'Key': tag_key,
+                                'Value': str(datetime.utcnow())
+                            }
+                        ]
+                    )
+        return instance_list
+    except Exception as e:
+        # If any other exceptions which we didn't expect are raised
+        # then fail and log the exception message.
+        logger.error('Failure describing instances with tag key: {} : {}'.format(tag_key, e))
+        raise
+
+
 def check_alarm_tag(instance_id, tag_key):
     try:
         ec2_client = boto3_client('ec2')
@@ -78,7 +118,8 @@ def check_alarm_tag(instance_id, tag_key):
         raise
 
 
-def process_lambda_alarms(function_name, tags, activation_tag, default_alarms, sns_topic_arn, alarm_separator):
+def process_lambda_alarms(function_name, tags, activation_tag, default_alarms, sns_topic_arn, alarm_separator,
+                          alarm_identifier):
     activation_tag = tags.get(activation_tag, 'not_found')
     if activation_tag == 'not_found':
         logger.debug('Activation tag not found for {}, nothing to do'.format(function_name))
@@ -86,7 +127,7 @@ def process_lambda_alarms(function_name, tags, activation_tag, default_alarms, s
     else:
         logger.debug('Processing function specific alarms for: {}'.format(default_alarms))
         for tag_key in tags:
-            if tag_key.startswith('AutoAlarm'):
+            if tag_key.startswith(alarm_identifier):
                 default_alarms['AWS/Lambda'].append({'Key': tag_key, 'Value': tags[tag_key]})
 
         # get the default dimensions for AWS/EC2
@@ -106,14 +147,16 @@ def process_lambda_alarms(function_name, tags, activation_tag, default_alarms, s
             Period = alarm_properties[4]
             Statistic = alarm_properties[5]
 
-            AlarmName = 'AutoAlarm-{}-{}-{}-{}-{}-{}'.format(function_name, Namespace, MetricName, ComparisonOperator,
-                                                             Period,
-                                                             Statistic)
+            AlarmName = '{}-{}-{}-{}-{}-{}-{}'.format(alarm_identifier, function_name, Namespace, MetricName,
+                                                      ComparisonOperator,
+                                                      Period,
+                                                      Statistic)
             create_alarm(AlarmName, MetricName, ComparisonOperator, Period, tag['Value'], Statistic, Namespace,
                          dimensions, sns_topic_arn)
 
 
-def create_alarm_from_tag(id, alarm_tag, instance_info, metric_dimensions_map, sns_topic_arn, alarm_separator):
+def create_alarm_from_tag(id, alarm_tag, instance_info, metric_dimensions_map, sns_topic_arn, alarm_separator,
+                          alarm_identifier):
     alarm_properties = alarm_tag['Key'].split(alarm_separator)
     namespace = alarm_properties[1]
     MetricName = alarm_properties[2]
@@ -158,7 +201,7 @@ def create_alarm_from_tag(id, alarm_tag, instance_info, metric_dimensions_map, s
         logger.error('Unable to determine the dimensions for alarm tag: {}'.format(alarm_tag))
         raise Exception
 
-    AlarmName = 'AutoAlarm-{}-{}-{}'.format(id, namespace, MetricName)
+    AlarmName = '{}-{}-{}-{}'.format(alarm_identifier, id, namespace, MetricName)
     properties_offset = 0
     if additional_dimensions:
         for num, dim in enumerate(additional_dimensions[::2]):
@@ -182,10 +225,10 @@ def create_alarm_from_tag(id, alarm_tag, instance_info, metric_dimensions_map, s
                  dimensions, sns_topic_arn)
 
 
-def process_alarm_tags(instance_id, instance_info, default_alarms, metric_dimensions_map, sns_topic_arn, cw_namespace,
-                       create_default_alarms_flag, alarm_separator):
+def process_alarm_tags(instance_info, default_alarms, metric_dimensions_map, sns_topic_arn, cw_namespace,
+                       create_default_alarms_flag, alarm_separator, alarm_identifier):
     tags = instance_info['Tags']
-
+    instance_id = instance_info['InstanceId']
     ImageId = instance_info['ImageId']
     logger.info('ImageId is: {}'.format(ImageId))
     platform = determine_platform(ImageId)
@@ -194,15 +237,21 @@ def process_alarm_tags(instance_id, instance_info, default_alarms, metric_dimens
     custom_alarms = dict()
     # get all alarm tags from instance and add them into a custom tag list
     for instance_tag in tags:
-        if instance_tag['Key'].startswith('AutoAlarm'):
-            create_alarm_from_tag(instance_id, instance_tag, instance_info, metric_dimensions_map, sns_topic_arn, alarm_separator)
+        if instance_tag['Key'].startswith(alarm_identifier):
+            create_alarm_from_tag(instance_id, instance_tag, instance_info, metric_dimensions_map, sns_topic_arn,
+                                  alarm_separator, alarm_identifier)
 
     if create_default_alarms_flag == 'true':
         for alarm_tag in default_alarms['AWS/EC2']:
-            create_alarm_from_tag(instance_id, alarm_tag, instance_info, metric_dimensions_map, sns_topic_arn, alarm_separator)
-
-        for alarm_tag in default_alarms[cw_namespace][platform]:
-            create_alarm_from_tag(instance_id, alarm_tag, instance_info, metric_dimensions_map, sns_topic_arn, alarm_separator)
+            create_alarm_from_tag(instance_id, alarm_tag, instance_info, metric_dimensions_map, sns_topic_arn,
+                                  alarm_separator, alarm_identifier)
+        # unable to determine platform, don't create platform specific alarms...
+        if not platform:
+            logger.error("unable to determine platform, no platform specific alarms created.")
+        else:
+            for alarm_tag in default_alarms[cw_namespace][platform]:
+                create_alarm_from_tag(instance_id, alarm_tag, instance_info, metric_dimensions_map, sns_topic_arn,
+                                      alarm_separator, alarm_identifier)
     else:
         logger.info("Default alarm creation is turned off")
 
@@ -229,8 +278,10 @@ def determine_platform(imageid):
             elif 'SUSE' in platform_details:
                 return 'SUSE'
             elif 'Linux/UNIX' in platform_details:
-                if 'ubuntu' in image_info['Images'][0]['Description'].lower() or 'ubuntu' in image_info['Images'][0][
-                    'Name'].lower():
+                description = image_info['Images'][0]['Description'].lower()
+                name = image_info['Images'][0]['Name'].lower()
+                logger.debug("Linux image name is: {} with description: {}".format(name, description))
+                if 'ubuntu' in description or 'ubuntu' in name:
                     return 'Ubuntu'
                 else:
                     return 'Amazon Linux'
@@ -257,7 +308,7 @@ def convert_to_seconds(s):
         raise
 
 
-# Alarm Name Format: AutoAlarm-<InstanceId>-<Statistic>-<MetricName>-<ComparisonOperator>-<Threshold>-<Period>
+# Alarm Name Format: <AlarmIdentifier>-<InstanceId>-<Statistic>-<MetricName>-<ComparisonOperator>-<Threshold>-<Period>
 # Example:  AutoAlarm-i-00e4f327736cb077f-CPUUtilization-GreaterThanThreshold-80-5m
 def create_alarm(AlarmName, MetricName, ComparisonOperator, Period, Threshold, Statistic, Namespace, Dimensions,
                  sns_topic_arn):
@@ -302,9 +353,9 @@ def create_alarm(AlarmName, MetricName, ComparisonOperator, Period, Threshold, S
             'Error creating alarm {}!: {}'.format(AlarmName, e))
 
 
-def delete_alarms(name):
+def delete_alarms(name, alarm_identifier):
     try:
-        AlarmNamePrefix = "AutoAlarm-{}".format(name)
+        AlarmNamePrefix = "{}-{}".format(name, alarm_identifier)
         cw_client = boto3_client('cloudwatch')
         logger.info('calling describe alarms with prefix {}'.format(AlarmNamePrefix))
         response = cw_client.describe_alarms(

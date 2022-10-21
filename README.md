@@ -65,7 +65,11 @@ The following list provides a description of the setting along with the environm
     * You can add EC2 metric dimensions to all metrics collected by the CloudWatch agent.  This environment variable aligns to your CloudWatch configuration setting for [**append_dimensions**](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch-Agent-Configuration-File-Details.html#CloudWatch-Agent-Configuration-File-Metricssection).  The default setting includes all the supported dimensions:  InstanceId, ImageId, InstanceType, AutoScalingGroupName
 * **DEFAULT_ALARM_SNS_TOPIC_ARN**:  arn:aws:sns:${AWS::Region}:${AWS::AccountId}:CloudWatchAutoAlarmsSNSTopic
     * You can define an Amazon Simple Notification Service (Amazon SNS) topic that the Lambda function will specify as the notification target for created alarms. You provide the Amazon SNS Topic Amazon Resource Name (ARN) with the **AlarmNotificationARN** parameter when you deploy the CloudWatchAutoAlarms.yaml CloudFormation template.  If you leave the **AlarmNotificationARN** parameter value blank, then this environment variable is not set and created alarms won't use notifications.
-* You can update the thresholds for the default alarms by updating the following environment variables:
+* **ALARM_IDENTIFIER_PREFIX**:  AutoAlarm
+    * The prefix name that is added to the beginning of each CloudWatch alarm created by the solution.  (e.g. For "AutoAlarm":  (e.g. AutoAlarm-i-00e4f327736cb077f-CPUUtilization-GreaterThanThreshold-80-5m))  You should update this variable via the **AlarmIdentifierPrefix** in the [CloudWatchAutoAlarms.yaml](./CloudWatchAutoAlarms.yaml) CloudFormation template so that the IAM policy is updated to align with your custom name. 
+
+You can update the thresholds for the default alarms by updating the following environment variables:
+
 
    **For Amazon EC2**:
     * **ALARM_CPU_HIGH_THRESHOLD**: 75
@@ -85,9 +89,9 @@ The following list provides a description of the setting along with the environm
 2. Configure the AWS CLI with credentials for your AWS account.  This walkthrough uses temporary credentials provided by AWS Single Sign On using the **Command line or programmatic access** option.  This sets the **AWS_ACCESS_KEY_ID**, **AWS_SECRET_ACCESS_KEY**, and **AWS_SESSION_TOKEN** AWS environment variables with the appropriate credentials for use with the AWS CLI.
 3. Create an Amazon SNS topic that CloudWatchAutoAlarms will use for notifications. You can use this sample Amazon SNS CloudFormation template to create an SNS topic.  Leave the OrganizationID parameter blank, it is used for multi-account deployments.
 
-       aws cloudformation create-stack --stack-name amazon-cloudwatch-auto-alarms-sns-topic \ 
-       --template-body file://CloudWatchAutoAlarms-SNS.yaml \ 
-       --parameters ParameterKey=OrganizationID,ParameterValue="" \ 
+       aws cloudformation create-stack --stack-name amazon-cloudwatch-auto-alarms-sns-topic \
+       --template-body file://CloudWatchAutoAlarms-SNS.yaml \
+       --parameters ParameterKey=OrganizationID,ParameterValue="" \
        --region <enter your aws region id, e.g. "us-east-1">
 4. Create an S3 bucket that will be used to store and access the CloudWatchAutoAlarms lambda function deployment package if you don't have one.  You can use [this sample S3 CloudFormation template](./CloudWatchAutoAlarms-S3.yaml).  You can leave the AWS Organizations ID parameter blank if this lambda function will only be deployed in your current account:
 
@@ -133,6 +137,15 @@ The following list provides a description of the setting along with the environm
 In order to create the default alarm set for an Amazon EC2 instance or AWS Lambda function, you simply need to tag the Amazon EC2 instance or AWS Lambda function with the activation tag key defined by the **ALARM_TAG** environment variable.  The default tag activation key is **Create_Auto_Alarms**.
 
 For Amazon EC2 instances, you must add this tag during instance launch or you can add this tag at any time to an instance and then stop and start the instance in order to create the default alarm set as well as any custom, instance specific alarms.
+
+You can also manually invoke the CloudWatchAutoAlarms lambda function with the following event payload to create / update EC2 alarms without having to stop and start your EC2 instances:
+
+```json
+{
+  "manual_update": "aws.ec2"
+}
+```
+You can do this with a test execution of the CloudWatchAUtoAlarms AWS Lambda function.  Open the  AWS Lambda Management Console and perform a test invocation from the **Test** tab with the payload provided here.
 
 For AWS Lambda, you can add this tag to an AWS Lambda function at any time in order to create the default alarm set as well as any custom, function specific alarms.
 

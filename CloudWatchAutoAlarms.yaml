@@ -22,6 +22,11 @@ Parameters:
     Description: Enter the Amazon SNS Notification ARN for alarm notifications, leave blank to disable notifications.
     Type: String
     Default: ""
+  AlarmIdentifierPrefix:
+    Description: Enter the prefix that should be added to the beginning of each alarm created by the solution, (e.g. AutoAlarm-i-00e4f327736cb077f-CPUUtilization-GreaterThanThreshold-80-5m)
+    Type: String
+    Default: AutoAlarm
+
 
 Conditions:
   ConfigureAlarmNotifications: !Not [!Equals ["", !Ref AlarmNotificationARN]]
@@ -48,6 +53,7 @@ Resources:
           ALARM_CPU_CREDIT_BALANCE_LOW_THRESHOLD: 100
           ALARM_MEMORY_HIGH_THRESHOLD: 75
           ALARM_DISK_PERCENT_LOW_THRESHOLD: 20
+          ALARM_IDENTIFIER_PREFIX: !Ref AlarmIdentifierPrefix
           CLOUDWATCH_APPEND_DIMENSIONS: 'InstanceId, ImageId, InstanceType'
 
           ALARM_LAMBDA_ERROR_THRESHOLD: 0
@@ -102,7 +108,7 @@ Resources:
                   - cloudwatch:DescribeAlarms
                   - cloudwatch:DeleteAlarms
                   - cloudwatch:PutMetricAlarm
-                Resource:  !Sub "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:AutoAlarm-*"
+                Resource:  !Sub "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:${AlarmIdentifierPrefix}-*"
               - Effect: Allow
                 Action:
                   - cloudwatch:DescribeAlarms

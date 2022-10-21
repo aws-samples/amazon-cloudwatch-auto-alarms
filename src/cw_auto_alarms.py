@@ -1,8 +1,11 @@
 import logging
-from actions import check_alarm_tag, process_alarm_tags, delete_alarms, process_lambda_alarms
+from actions import check_alarm_tag, process_alarm_tags, delete_alarms, process_lambda_alarms, retrieve_ec2_instances
 from os import getenv
 
 logger = logging.getLogger()
+log_level = getenv("LOGLEVEL", "INFO")
+level = logging.getLevelName(log_level)
+logger.setLevel(level)
 
 create_alarm_tag = getenv("ALARM_TAG", "Create_Auto_Alarms")
 
@@ -14,7 +17,6 @@ append_dimensions = getenv("CLOUDWATCH_APPEND_DIMENSIONS", 'InstanceId, ImageId,
 append_dimensions = [dimension.strip() for dimension in append_dimensions.split(',')]
 
 alarm_cpu_high_default_threshold = getenv("ALARM_CPU_HIGH_THRESHOLD", "75")
-alarm_credit_balance_low_default_threshold = getenv("ALARM_CPU_CREDIT_BALANCE_LOW_THRESHOLD", "100")
 alarm_memory_high_default_threshold = getenv("ALARM_MEMORY_HIGH_THRESHOLD", "75")
 alarm_disk_space_percent_free_threshold = getenv("ALARM_DISK_PERCENT_LOW_THRESHOLD", "20")
 alarm_disk_used_percent_threshold = 100 - int(alarm_disk_space_percent_free_threshold)
@@ -27,7 +29,7 @@ alarm_lambda_destination_delivery_failure_threshold = getenv("ALARM_LAMBDA_DESTI
 sns_topic_arn = getenv("DEFAULT_ALARM_SNS_TOPIC_ARN", None)
 
 alarm_separator = '-'
-alarm_identifier = 'AutoAlarm'
+alarm_identifier = getenv("ALARM_IDENTIFIER_PREFIX", 'AutoAlarm')
 # For Redhat, the default device is xvda2, xfs, for Ubuntu, the default fstype is ext4,
 # for Amazon Linux, the default device is xvda1, xfs
 default_alarms = {
@@ -36,11 +38,6 @@ default_alarms = {
             'Key': alarm_separator.join(
                 [alarm_identifier, 'AWS/EC2', 'CPUUtilization', 'GreaterThanThreshold', '5m', 'Average']),
             'Value': alarm_cpu_high_default_threshold
-        },
-        {
-            'Key': alarm_separator.join(
-                [alarm_identifier, 'AWS/EC2', 'CPUCreditBalance', 'LessThanThreshold', '5m', 'Average']),
-            'Value': alarm_credit_balance_low_default_threshold
         }
     ],
     'AWS/Lambda': [
@@ -142,23 +139,32 @@ def lambda_handler(event, context):
 
             # instance has been tagged for alarming, confirm an alarm doesn't already exist
             if instance_info:
-                process_alarm_tags(instance_id, instance_info, default_alarms, metric_dimensions_map, sns_topic_arn,
-                                   cw_namespace, create_default_alarms_flag, alarm_separator)
+                process_alarm_tags(instance_info, default_alarms, metric_dimensions_map, sns_topic_arn,
+                                   cw_namespace, create_default_alarms_flag, alarm_separator, alarm_identifier)
+        elif 'manual_update' in event and event['manual_update'] == 'aws.ec2':
+            logger.debug("manual invocation started")
+            instances = retrieve_ec2_instances(create_alarm_tag)
+            logger.debug("Instance Info with tag {} are: {}".format(create_alarm_tag, instances))
+
+            for instance_info in instances:
+                process_alarm_tags(instance_info, default_alarms, metric_dimensions_map, sns_topic_arn,
+                                   cw_namespace, create_default_alarms_flag, alarm_separator, alarm_identifier)
         elif 'source' in event and event['source'] == 'aws.ec2' and event['detail']['state'] == 'terminated':
             instance_id = event['detail']['instance-id']
-            result = delete_alarms(instance_id)
+            result = delete_alarms(instance_id, alarm_identifier)
         elif 'source' in event and event['source'] == 'aws.lambda' and event['detail'][
             'eventName'] == 'TagResource20170331v2':
             logger.debug(
                 'Tag Lambda Function event occurred, tags are: {}'.format(event['detail']['requestParameters']['tags']))
             tags = event['detail']['requestParameters']['tags']
             function = event['detail']['requestParameters']['resource'].split(":")[-1]
-            process_lambda_alarms(function, tags, create_alarm_tag, default_alarms, sns_topic_arn, alarm_separator)
+            process_lambda_alarms(function, tags, create_alarm_tag, default_alarms, sns_topic_arn, alarm_separator,
+                                  alarm_identifier)
         elif 'source' in event and event['source'] == 'aws.lambda' and event['detail'][
             'eventName'] == 'DeleteFunction20150331':
             function = event['detail']['requestParameters']['functionName']
             logger.debug('Delete Lambda Function event occurred for: {}'.format(function))
-            result = delete_alarms(function)
+            result = delete_alarms(function, alarm_identifier)
 
     except Exception as e:
         # If any other exceptions which we didn't expect are raised
