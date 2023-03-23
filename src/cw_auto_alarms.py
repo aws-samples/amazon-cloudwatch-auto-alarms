@@ -44,19 +44,19 @@ default_alarms = {
     'AWS/EC2': [
         {
             'Key': alarm_separator.join(
-                [alarm_identifier, 'AWS/EC2', 'CPUUtilization', 'GreaterThanThreshold', default_period, default_evaluation_periods, default_statistic, 'Created_by_cloudwatch-auto-alarms']),
+                [alarm_identifier, 'AWS/EC2', 'CPUUtilization', 'GreaterThanThreshold', default_period, default_evaluation_periods, default_statistic, 'Created_by_CloudWatchAutoAlarms']),
             'Value': alarm_cpu_high_default_threshold
         }
     ],
     'AWS/Lambda': [
         {
             'Key': alarm_separator.join(
-                [alarm_identifier, 'AWS/Lambda', 'Errors', 'GreaterThanThreshold', default_period, default_evaluation_periods, default_statistic, 'Created_by_cloudwatch-auto-alarms']),
+                [alarm_identifier, 'AWS/Lambda', 'Errors', 'GreaterThanThreshold', default_period, default_evaluation_periods, default_statistic, 'Created_by_CloudWatchAutoAlarms']),
             'Value': alarm_lambda_error_threshold
         },
         {
             'Key': alarm_separator.join(
-                [alarm_identifier, 'AWS/Lambda', 'Throttles', 'GreaterThanThreshold', default_period, default_evaluation_periods, default_statistic, 'Created_by_cloudwatch-auto-alarms']),
+                [alarm_identifier, 'AWS/Lambda', 'Throttles', 'GreaterThanThreshold', default_period, default_evaluation_periods, default_statistic, 'Created_by_CloudWatchAutoAlarms']),
             'Value': alarm_lambda_throttles_threshold
         }
     ],
@@ -66,13 +66,13 @@ default_alarms = {
             {
                 'Key': alarm_separator.join(
                     [alarm_identifier, cw_namespace, 'LogicalDisk % Free Space', 'objectname', 'LogicalDisk',
-                     'instance', 'C:', 'LessThanThreshold', default_period, default_evaluation_periods, default_statistic, 'Created_by_cloudwatch-auto-alarms']),
+                     'instance', 'C:', 'LessThanThreshold', default_period, default_evaluation_periods, default_statistic, 'Created_by_CloudWatchAutoAlarms']),
                 'Value': alarm_disk_space_percent_free_threshold
             },
             {
                 'Key': alarm_separator.join(
                     [alarm_identifier, cw_namespace, 'Memory % Committed Bytes In Use', 'objectname', 'Memory',
-                     'GreaterThanThreshold', default_period, default_evaluation_periods, default_statistic, 'Created_by_cloudwatch-auto-alarms']),
+                     'GreaterThanThreshold', default_period, default_evaluation_periods, default_statistic, 'Created_by_CloudWatchAutoAlarms']),
                 'Value': alarm_memory_high_default_threshold
             }
         ],
@@ -80,13 +80,13 @@ default_alarms = {
             {
                 'Key': alarm_separator.join(
                     [alarm_identifier, cw_namespace, 'disk_used_percent', 'device', 'xvda1', 'fstype', 'xfs', 'path',
-                     '/', 'GreaterThanThreshold', default_period, default_evaluation_periods, default_statistic, 'Created_by_cloudwatch-auto-alarms']),
+                     '/', 'GreaterThanThreshold', default_period, default_evaluation_periods, default_statistic, 'Created_by_CloudWatchAutoAlarms']),
                 'Value': alarm_disk_used_percent_threshold
             },
             {
                 'Key': alarm_separator.join(
                     [alarm_identifier, cw_namespace, 'mem_used_percent', 'GreaterThanThreshold', default_period, default_evaluation_periods, default_statistic, 
-                     'Created_by_cloudwatch-auto-alarms']),
+                     'Created_by_CloudWatchAutoAlarms']),
                 'Value': alarm_memory_high_default_threshold
             }
         ],
@@ -94,13 +94,13 @@ default_alarms = {
             {
                 'Key': alarm_separator.join(
                     [alarm_identifier, cw_namespace, 'disk_used_percent', 'device', 'xvda2', 'fstype', 'xfs', 'path',
-                     '/', 'GreaterThanThreshold', default_period, default_evaluation_periods, default_statistic, 'Created_by_cloudwatch-auto-alarms']),
+                     '/', 'GreaterThanThreshold', default_period, default_evaluation_periods, default_statistic, 'Created_by_CloudWatchAutoAlarms']),
                 'Value': alarm_disk_used_percent_threshold
             },
             {
                 'Key': alarm_separator.join(
                     [alarm_identifier, cw_namespace, 'mem_used_percent', 'GreaterThanThreshold', default_period, default_evaluation_periods, default_statistic, 
-                     'Created_by_cloudwatch-auto-alarms']),
+                     'Created_by_CloudWatchAutoAlarms']),
                 'Value': alarm_memory_high_default_threshold
             }
         ],
@@ -108,13 +108,13 @@ default_alarms = {
             {
                 'Key': alarm_separator.join(
                     [alarm_identifier, cw_namespace, 'disk_used_percent', 'device', 'xvda1', 'fstype', 'ext4', 'path',
-                     '/', 'GreaterThanThreshold', default_period, default_evaluation_periods, default_statistic, 'Created_by_cloudwatch-auto-alarms']),
+                     '/', 'GreaterThanThreshold', default_period, default_evaluation_periods, default_statistic, 'Created_by_CloudWatchAutoAlarms']),
                 'Value': alarm_disk_used_percent_threshold
             },
             {
                 'Key': alarm_separator.join(
                     [alarm_identifier, cw_namespace, 'mem_used_percent', 'GreaterThanThreshold', default_period, default_evaluation_periods, default_statistic, 
-                     'Created_by_cloudwatch-auto-alarms']),
+                     'Created_by_CloudWatchAutoAlarms']),
                 'Value': alarm_memory_high_default_threshold
             }
         ],
@@ -122,13 +122,13 @@ default_alarms = {
             {
                 'Key': alarm_separator.join(
                     [alarm_identifier, cw_namespace, 'disk_used_percent', 'device', 'xvda1', 'fstype', 'xfs', 'path',
-                     '/', 'GreaterThanThreshold', default_period, default_evaluation_periods, default_statistic, 'Created_by_cloudwatch-auto-alarms']),
+                     '/', 'GreaterThanThreshold', default_period, default_evaluation_periods, default_statistic, 'Created_by_CloudWatchAutoAlarms']),
                 'Value': alarm_disk_used_percent_threshold
             },
             {
                 'Key': alarm_separator.join(
                     [alarm_identifier, cw_namespace, 'mem_used_percent', 'GreaterThanThreshold', default_period, default_evaluation_periods, default_statistic, 
-                     'Created_by_cloudwatch-auto-alarms']),
+                     'Created_by_CloudWatchAutoAlarms']),
                 'Value': alarm_memory_high_default_threshold
             }
         ]
