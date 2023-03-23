@@ -1,5 +1,6 @@
 import logging
-from actions import check_alarm_tag, process_alarm_tags, delete_alarms, process_lambda_alarms, scan_and_process_alarm_tags
+from actions import check_alarm_tag, process_alarm_tags, delete_alarms, process_lambda_alarms, \
+    scan_and_process_alarm_tags
 from os import getenv
 
 logger = logging.getLogger()
@@ -30,6 +31,11 @@ sns_topic_arn = getenv("DEFAULT_ALARM_SNS_TOPIC_ARN", None)
 
 alarm_separator = '-'
 alarm_identifier = getenv("ALARM_IDENTIFIER_PREFIX", 'AutoAlarm')
+
+default_period = '5m'
+default_evaluation_periods = '1'
+default_statistic = 'Average'
+
 # For Redhat, the default device is xvda2, xfs, for Ubuntu, the default fstype is ext4,
 # for Amazon Linux, the default device is xvda1, xfs
 default_alarms = {
@@ -38,19 +44,19 @@ default_alarms = {
     'AWS/EC2': [
         {
             'Key': alarm_separator.join(
-                [alarm_identifier, 'AWS/EC2', 'CPUUtilization', 'GreaterThanThreshold', '5m', 'Average', 'default1']),
+                [alarm_identifier, 'AWS/EC2', 'CPUUtilization', 'GreaterThanThreshold', default_period, default_evaluation_periods, default_statistic, 'Created_by_CloudWatchAutoAlarms']),
             'Value': alarm_cpu_high_default_threshold
         }
     ],
     'AWS/Lambda': [
         {
             'Key': alarm_separator.join(
-                [alarm_identifier, 'AWS/Lambda', 'Errors', 'GreaterThanThreshold', '5m', 'Average', 'default1']),
+                [alarm_identifier, 'AWS/Lambda', 'Errors', 'GreaterThanThreshold', default_period, default_evaluation_periods, default_statistic, 'Created_by_CloudWatchAutoAlarms']),
             'Value': alarm_lambda_error_threshold
         },
         {
             'Key': alarm_separator.join(
-                [alarm_identifier, 'AWS/Lambda', 'Throttles', 'GreaterThanThreshold', '5m', 'Average', 'default1']),
+                [alarm_identifier, 'AWS/Lambda', 'Throttles', 'GreaterThanThreshold', default_period, default_evaluation_periods, default_statistic, 'Created_by_CloudWatchAutoAlarms']),
             'Value': alarm_lambda_throttles_threshold
         }
     ],
@@ -60,13 +66,13 @@ default_alarms = {
             {
                 'Key': alarm_separator.join(
                     [alarm_identifier, cw_namespace, 'LogicalDisk % Free Space', 'objectname', 'LogicalDisk',
-                     'instance', 'C:', 'LessThanThreshold', '5m', 'Average', 'default1']),
+                     'instance', 'C:', 'LessThanThreshold', default_period, default_evaluation_periods, default_statistic, 'Created_by_CloudWatchAutoAlarms']),
                 'Value': alarm_disk_space_percent_free_threshold
             },
             {
                 'Key': alarm_separator.join(
                     [alarm_identifier, cw_namespace, 'Memory % Committed Bytes In Use', 'objectname', 'Memory',
-                     'GreaterThanThreshold', '5m', 'Average', 'default1']),
+                     'GreaterThanThreshold', default_period, default_evaluation_periods, default_statistic, 'Created_by_CloudWatchAutoAlarms']),
                 'Value': alarm_memory_high_default_threshold
             }
         ],
@@ -74,12 +80,13 @@ default_alarms = {
             {
                 'Key': alarm_separator.join(
                     [alarm_identifier, cw_namespace, 'disk_used_percent', 'device', 'xvda1', 'fstype', 'xfs', 'path',
-                     '/', 'GreaterThanThreshold', '5m', 'Average', 'default1']),
+                     '/', 'GreaterThanThreshold', default_period, default_evaluation_periods, default_statistic, 'Created_by_CloudWatchAutoAlarms']),
                 'Value': alarm_disk_used_percent_threshold
             },
             {
                 'Key': alarm_separator.join(
-                    [alarm_identifier, cw_namespace, 'mem_used_percent', 'GreaterThanThreshold', '5m', 'Average', 'default1']),
+                    [alarm_identifier, cw_namespace, 'mem_used_percent', 'GreaterThanThreshold', default_period, default_evaluation_periods, default_statistic,
+                     'Created_by_CloudWatchAutoAlarms']),
                 'Value': alarm_memory_high_default_threshold
             }
         ],
@@ -87,12 +94,13 @@ default_alarms = {
             {
                 'Key': alarm_separator.join(
                     [alarm_identifier, cw_namespace, 'disk_used_percent', 'device', 'xvda2', 'fstype', 'xfs', 'path',
-                     '/', 'GreaterThanThreshold', '5m', 'Average', 'default1']),
+                     '/', 'GreaterThanThreshold', default_period, default_evaluation_periods, default_statistic, 'Created_by_CloudWatchAutoAlarms']),
                 'Value': alarm_disk_used_percent_threshold
             },
             {
                 'Key': alarm_separator.join(
-                    [alarm_identifier, cw_namespace, 'mem_used_percent', 'GreaterThanThreshold', '5m', 'Average', 'default1']),
+                    [alarm_identifier, cw_namespace, 'mem_used_percent', 'GreaterThanThreshold', default_period, default_evaluation_periods, default_statistic,
+                     'Created_by_CloudWatchAutoAlarms']),
                 'Value': alarm_memory_high_default_threshold
             }
         ],
@@ -100,12 +108,13 @@ default_alarms = {
             {
                 'Key': alarm_separator.join(
                     [alarm_identifier, cw_namespace, 'disk_used_percent', 'device', 'xvda1', 'fstype', 'ext4', 'path',
-                     '/', 'GreaterThanThreshold', '5m', 'Average', 'default1']),
+                     '/', 'GreaterThanThreshold', default_period, default_evaluation_periods, default_statistic, 'Created_by_CloudWatchAutoAlarms']),
                 'Value': alarm_disk_used_percent_threshold
             },
             {
                 'Key': alarm_separator.join(
-                    [alarm_identifier, cw_namespace, 'mem_used_percent', 'GreaterThanThreshold', '5m', 'Average', 'default1']),
+                    [alarm_identifier, cw_namespace, 'mem_used_percent', 'GreaterThanThreshold', default_period, default_evaluation_periods, default_statistic,
+                     'Created_by_CloudWatchAutoAlarms']),
                 'Value': alarm_memory_high_default_threshold
             }
         ],
@@ -113,12 +122,13 @@ default_alarms = {
             {
                 'Key': alarm_separator.join(
                     [alarm_identifier, cw_namespace, 'disk_used_percent', 'device', 'xvda1', 'fstype', 'xfs', 'path',
-                     '/', 'GreaterThanThreshold', '5m', 'Average', 'default1']),
+                     '/', 'GreaterThanThreshold', default_period, default_evaluation_periods, default_statistic, 'Created_by_CloudWatchAutoAlarms']),
                 'Value': alarm_disk_used_percent_threshold
             },
             {
                 'Key': alarm_separator.join(
-                    [alarm_identifier, cw_namespace, 'mem_used_percent', 'GreaterThanThreshold', '5m', 'Average', 'default1']),
+                    [alarm_identifier, cw_namespace, 'mem_used_percent', 'GreaterThanThreshold', default_period, default_evaluation_periods, default_statistic,
+                     'Created_by_CloudWatchAutoAlarms']),
                 'Value': alarm_memory_high_default_threshold
             }
         ]
@@ -158,12 +168,12 @@ def lambda_handler(event, context):
             function = event['detail']['requestParameters']['functionName']
             logger.debug('Delete Lambda Function event occurred for: {}'.format(function))
             result = delete_alarms(function, alarm_identifier, alarm_separator)
-        elif  'action' in event and event['action'] == 'scan':
+        elif 'action' in event and event['action'] == 'scan':
             logger.debug(
                 f'Scanning for EC2 instances with tag: {create_alarm_tag} to create alarm'
             )
             scan_and_process_alarm_tags(create_alarm_tag, default_alarms, metric_dimensions_map, sns_topic_arn,
-                                   cw_namespace, create_default_alarms_flag, alarm_separator, alarm_identifier)
+                                        cw_namespace, create_default_alarms_flag, alarm_separator, alarm_identifier)
 
     except Exception as e:
         # If any other exceptions which we didn't expect are raised

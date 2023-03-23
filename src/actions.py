@@ -8,8 +8,11 @@ logger = logging.getLogger()
 log_level = getenv("LOGLEVEL", "INFO")
 level = logging.getLevelName(log_level)
 logger.setLevel(level)
+
 valid_comparators = ['GreaterThanOrEqualToThreshold', 'GreaterThanThreshold', 'LessThanThreshold',
                      'LessThanOrEqualToThreshold']
+
+valid_statistics = ['Average', 'SampleCount', 'Sum', 'Minimum', 'Maximum']
 
 
 def boto3_client(resource, assumed_credentials=None):
@@ -78,7 +81,8 @@ def check_alarm_tag(instance_id, tag_key):
         raise
 
 
-def process_lambda_alarms(function_name, tags, activation_tag, default_alarms, sns_topic_arn, alarm_separator, alarm_identifier):
+def process_lambda_alarms(function_name, tags, activation_tag, default_alarms, sns_topic_arn, alarm_separator,
+                          alarm_identifier):
     activation_tag = tags.get(activation_tag, 'not_found')
     if activation_tag == 'not_found':
         logger.debug('Activation tag not found for {}, nothing to do'.format(function_name))
@@ -104,23 +108,49 @@ def process_lambda_alarms(function_name, tags, activation_tag, default_alarms, s
             MetricName = alarm_properties[2]
             ComparisonOperator = alarm_properties[3]
             Period = alarm_properties[4]
-            Statistic = alarm_properties[5]
 
-            AlarmName = alarm_separator.join([alarm_identifier, function_name, Namespace, MetricName, ComparisonOperator,
-                                                Period, Statistic])
+            # Provide support for previous formatting of custom alarm tags where the evaluation period wasn't specified.
+            # If an evaluation period isn't specified in the tag then it defaults to 1, similar to past behavior.
+            if alarm_properties[5] in valid_statistics:
+                EvaluationPeriods = 1
+                eval_period_offset = 0
+            else:
+                EvaluationPeriods = alarm_properties[5]
+                eval_period_offset = 1
 
-            create_alarm(AlarmName, MetricName, ComparisonOperator, Period, tag['Value'], Statistic, Namespace,
-                         dimensions, sns_topic_arn, alarm_identifier)
+            Statistic = alarm_properties[(5 + eval_period_offset)]
+
+            AlarmName = alarm_separator.join(
+                [alarm_identifier, function_name, Namespace, MetricName, ComparisonOperator, str(tag['Value']),
+                 Period, "{}p".format(EvaluationPeriods), Statistic])
+
+            # capture optional alarm description
+            try:
+                AlarmDescription = alarm_properties[(6 + eval_period_offset)]
+                AlarmName += alarm_separator + AlarmDescription
+            except:
+                logger.info('Description not supplied')
+                AlarmDescription = None
+
+            create_alarm(AlarmName, AlarmDescription, MetricName, ComparisonOperator, Period, tag['Value'], Statistic,
+                         Namespace,
+                         dimensions, EvaluationPeriods, sns_topic_arn)
 
 
-def create_alarm_from_tag(id, alarm_tag, instance_info, metric_dimensions_map, sns_topic_arn, alarm_separator, alarm_identifier):
+def create_alarm_from_tag(id, alarm_tag, instance_info, metric_dimensions_map, sns_topic_arn, alarm_separator,
+                          alarm_identifier):
+    # split alarm tag to decipher alarm properties, first property is alarm_identifier and ignored...
     alarm_properties = alarm_tag['Key'].split(alarm_separator)
     namespace = alarm_properties[1]
     MetricName = alarm_properties[2]
     dimensions = list()
+
+    # the number of dimensions may be different depending on the namespace.  For the default 'CWAgent' namespace, the default is to also include extended properties defined in cw_auto_alarms.py:append_dimensions
     for dimension_name in metric_dimensions_map.get(namespace, list()):
         dimension = dict()
-
+        # Evaluate the dimensions specified for the metric namespace
+        # If AutoScalingGroupName has been specified as a dimension to include, we first check to see if the instance has a tag indicating it is a part of an ASG.
+        # If it is, we get the ASG name and populate its value for this dimension.
         if dimension_name == 'AutoScalingGroupName':
             # find out if the instance is part of an autoscaling group
             instance_asg = next(
@@ -131,6 +161,8 @@ def create_alarm_from_tag(id, alarm_tag, instance_info, metric_dimensions_map, s
                 dimension['Value'] = dimension_value
                 dimensions.append(dimension)
         else:
+            # If the dimension exists as a property of the EC2 instance being processed, get the dimension value from
+            # the EC2 instance details and add, otherwise issue a warning and skip.
             dimension_value = instance_info.get(dimension_name, None)
             if dimension_value:
                 dimension['Name'] = dimension_name
@@ -145,6 +177,7 @@ def create_alarm_from_tag(id, alarm_tag, instance_info, metric_dimensions_map, s
 
     additional_dimensions = list()
 
+    # determine the dimensions and the last dimension for this alarm
     # exclude last element which is the DESCRIPTION that differentiates alarms
     for index, prop in enumerate(alarm_properties[3:-1], start=3):
         if prop in valid_comparators:
@@ -161,6 +194,7 @@ def create_alarm_from_tag(id, alarm_tag, instance_info, metric_dimensions_map, s
 
     AlarmName = alarm_separator.join([alarm_identifier, id, namespace, MetricName])
     properties_offset = 0
+    # process the dimensions
     try:
         if additional_dimensions:
             for num, dim in enumerate(additional_dimensions[::2]):
@@ -179,18 +213,32 @@ def create_alarm_from_tag(id, alarm_tag, instance_info, metric_dimensions_map, s
 
     ComparisonOperator = alarm_properties[(properties_offset + 3)]
     Period = alarm_properties[(properties_offset + 4)]
-    Statistic = alarm_properties[(properties_offset + 5)]
 
-    AlarmName += alarm_separator.join(['', ComparisonOperator, Period, Statistic])
+    # Provide support for previous formatting of custom alarm tags where the evaluation period wasn't specified.
+    # If an evaluation period isn't specified in the tag then it defaults to 1, similar to past behavior.
+    if alarm_properties[(properties_offset + 5)] in valid_statistics:
+        EvaluationPeriods = 1
+        eval_period_offset = 0
+    else:
+        EvaluationPeriods = alarm_properties[(properties_offset + 5)]
+        eval_period_offset = 1
+
+    Statistic = alarm_properties[(properties_offset + 5 + eval_period_offset)]
+
+    AlarmName += alarm_separator.join(
+        ['', ComparisonOperator, str(alarm_tag['Value']), str(Period), "{}p".format(EvaluationPeriods), Statistic])
 
     # add the description to the alarm name. If none are specified, log a message
     try:
-        AlarmName += alarm_separator + alarm_properties[(properties_offset + 6)]
+        AlarmDescription = alarm_properties[(properties_offset + 6 + eval_period_offset)]
+        AlarmName += alarm_separator + AlarmDescription
     except:
         logger.info('Description not supplied')
+        AlarmDescription = None
 
-    create_alarm(AlarmName, MetricName, ComparisonOperator, Period, alarm_tag['Value'], Statistic, namespace,
-                 dimensions, sns_topic_arn)
+    create_alarm(AlarmName, AlarmDescription, MetricName, ComparisonOperator, Period, alarm_tag['Value'], Statistic,
+                 namespace,
+                 dimensions, EvaluationPeriods, sns_topic_arn)
 
 
 def process_alarm_tags(instance_id, instance_info, default_alarms, metric_dimensions_map, sns_topic_arn, cw_namespace,
@@ -198,31 +246,35 @@ def process_alarm_tags(instance_id, instance_info, default_alarms, metric_dimens
     tags = instance_info['Tags']
 
     ImageId = instance_info['ImageId']
-    logger.info('ImageId is: {}'.format(ImageId))
+    logger.debug('ImageId is: {}'.format(ImageId))
     platform = determine_platform(ImageId)
 
     # if platform information is unavailable via determine_platform, try the platform in instance_info
     # determine_platform uses the describe_images API call. In some cases, the AMI may be deregistered
     # hence, use instance_info to extract platform details. This can detect Windows, Red Hat, SUSE platforms
     # instance_info does not contain enough information to distinguish Ubuntu and Amazon Linux platforms
+
     if not platform:
         platform_details = instance_info['PlatformDetails']
         logger.debug('Platform details of instance: {}'.format(platform_details))
         platform = format_platform_details(platform_details)
 
-    logger.info('Platform is: {}'.format(platform))
-    custom_alarms = dict()
-    # get all alarm tags from instance and add them into a custom tag list
+    logger.debug('Platform is: {}'.format(platform))
+
+    # scan instance tags and create alarms for any custom alarm tags
     for instance_tag in tags:
         if instance_tag['Key'].startswith(alarm_identifier):
-            create_alarm_from_tag(instance_id, instance_tag, instance_info, metric_dimensions_map, sns_topic_arn, alarm_separator, alarm_identifier)
+            create_alarm_from_tag(instance_id, instance_tag, instance_info, metric_dimensions_map, sns_topic_arn,
+                                  alarm_separator, alarm_identifier)
 
     if create_default_alarms_flag == 'true':
         for alarm_tag in default_alarms['AWS/EC2']:
-            create_alarm_from_tag(instance_id, alarm_tag, instance_info, metric_dimensions_map, sns_topic_arn, alarm_separator, alarm_identifier)
+            create_alarm_from_tag(instance_id, alarm_tag, instance_info, metric_dimensions_map, sns_topic_arn,
+                                  alarm_separator, alarm_identifier)
         if platform:
             for alarm_tag in default_alarms[cw_namespace][platform]:
-                create_alarm_from_tag(instance_id, alarm_tag, instance_info, metric_dimensions_map, sns_topic_arn, alarm_separator, alarm_identifier)
+                create_alarm_from_tag(instance_id, alarm_tag, instance_info, metric_dimensions_map, sns_topic_arn,
+                                      alarm_separator, alarm_identifier)
         else:
             logger.warning("Skipping platform specific alarm creation for {}, unknown platform.".format(instance_id))
     else:
@@ -248,7 +300,8 @@ def determine_platform(imageid):
             if not platform and 'Linux/UNIX' in platform_details:
                 if 'ubuntu' in image_info['Images'][0]['Name'].lower():
                     platform = 'Ubuntu'
-                elif 'Description' in image_info['Images'][0] and 'ubuntu' in image_info['Images'][0]['Description'].lower():
+                elif 'Description' in image_info['Images'][0] and 'ubuntu' in image_info['Images'][0][
+                    'Description'].lower():
                     platform = 'Ubuntu'
                 else:
                     # an assumption is made here that it is Amazon Linux.
@@ -264,6 +317,7 @@ def determine_platform(imageid):
         # then fail and log the exception message.
         logger.error('Failure describing image {}: {}'.format(imageid, e))
         raise
+
 
 def format_platform_details(platform_details):
     if 'Windows' in platform_details or 'SQL Server' in platform_details:
@@ -285,6 +339,7 @@ def format_platform_details(platform_details):
     else:
         return None
 
+
 def convert_to_seconds(s):
     try:
         seconds_per_unit = {"s": 1, "m": 60, "h": 3600, "d": 86400, "w": 604800}
@@ -296,11 +351,16 @@ def convert_to_seconds(s):
         raise
 
 
-# Alarm Name Format: <AlarmIdentifier>-<InstanceId>-<Statistic>-<MetricName>-<ComparisonOperator>-<Threshold>-<Period>
-# Example:  AutoAlarm-i-00e4f327736cb077f-CPUUtilization-GreaterThanThreshold-80-5m
-def create_alarm(AlarmName, MetricName, ComparisonOperator, Period, Threshold, Statistic, Namespace, Dimensions,
+# Alarm Name Format: <AlarmIdentifier>-<InstanceId>-<Namespace>-<MetricName>-<ComparisonOperator>-<Threshold>-<Period>-<EvaluationPeriods>p-<Statistic>
+# Example:  AutoAlarm-i-00e4f327736cb077f-AWS/EC2_CPUUtilization-GreaterThanThreshold-80-5m-1p=Average
+def create_alarm(AlarmName, AlarmDescription, MetricName, ComparisonOperator, Period, Threshold, Statistic, Namespace,
+                 Dimensions,
+                 EvaluationPeriods,
                  sns_topic_arn):
-    AlarmDescription = 'Alarm created by lambda function CloudWatchAutoAlarms'
+    if AlarmDescription:
+        AlarmDescription = AlarmDescription.replace("_", " ")
+    else:
+        AlarmDescription = 'Created by cloudwatch-auto-alarms'
 
     try:
         Period = convert_to_seconds(Period)
@@ -321,7 +381,7 @@ def create_alarm(AlarmName, MetricName, ComparisonOperator, Period, Threshold, S
             'Namespace': Namespace,
             'Dimensions': Dimensions,
             'Period': Period,
-            'EvaluationPeriods': 1,
+            'EvaluationPeriods': int(EvaluationPeriods),
             'Threshold': Threshold,
             'ComparisonOperator': ComparisonOperator,
             'Statistic': Statistic
@@ -366,18 +426,21 @@ def delete_alarms(name, alarm_identifier, alarm_separator):
         logger.error(
             'Error deleting alarms for {}!: {}'.format(name, e))
 
+
 def scan_and_process_alarm_tags(create_alarm_tag, default_alarms, metric_dimensions_map, sns_topic_arn,
-                                   cw_namespace, create_default_alarms_flag, alarm_separator, alarm_identifier):
+                                cw_namespace, create_default_alarms_flag, alarm_separator, alarm_identifier,
+                                evaluation_periods):
     try:
         ec2_client = boto3_client('ec2')
         for reservation in ec2_client.describe_instances()["Reservations"]:
             for instance in reservation["Instances"]:
                 # Look for running instances only
-                if instance["State"]["Code"]>16:
+                if instance["State"]["Code"] > 16:
                     continue
                 if check_alarm_tag(instance["InstanceId"], create_alarm_tag):
                     process_alarm_tags(instance["InstanceId"], instance, default_alarms, metric_dimensions_map,
-                     sns_topic_arn, cw_namespace, create_default_alarms_flag, alarm_separator, alarm_identifier)
+                                       sns_topic_arn, cw_namespace, create_default_alarms_flag, alarm_separator,
+                                       alarm_identifier)
 
     except Exception as e:
         # If any other exceptions which we didn't expect are raised
