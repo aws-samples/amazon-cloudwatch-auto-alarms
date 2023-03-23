@@ -33,7 +33,7 @@ alarm_separator = '-'
 alarm_identifier = getenv("ALARM_IDENTIFIER_PREFIX", 'AutoAlarm')
 
 default_period = '5m'
-default_evaluation_periods = 1
+default_evaluation_periods = '1'
 default_statistic = 'Average'
 
 # For Redhat, the default device is xvda2, xfs, for Ubuntu, the default fstype is ext4,
@@ -85,7 +85,7 @@ default_alarms = {
             },
             {
                 'Key': alarm_separator.join(
-                    [alarm_identifier, cw_namespace, 'mem_used_percent', 'GreaterThanThreshold', default_period, default_evaluation_periods, default_statistic, 
+                    [alarm_identifier, cw_namespace, 'mem_used_percent', 'GreaterThanThreshold', default_period, default_evaluation_periods, default_statistic,
                      'Created_by_CloudWatchAutoAlarms']),
                 'Value': alarm_memory_high_default_threshold
             }
@@ -99,7 +99,7 @@ default_alarms = {
             },
             {
                 'Key': alarm_separator.join(
-                    [alarm_identifier, cw_namespace, 'mem_used_percent', 'GreaterThanThreshold', default_period, default_evaluation_periods, default_statistic, 
+                    [alarm_identifier, cw_namespace, 'mem_used_percent', 'GreaterThanThreshold', default_period, default_evaluation_periods, default_statistic,
                      'Created_by_CloudWatchAutoAlarms']),
                 'Value': alarm_memory_high_default_threshold
             }
@@ -113,7 +113,7 @@ default_alarms = {
             },
             {
                 'Key': alarm_separator.join(
-                    [alarm_identifier, cw_namespace, 'mem_used_percent', 'GreaterThanThreshold', default_period, default_evaluation_periods, default_statistic, 
+                    [alarm_identifier, cw_namespace, 'mem_used_percent', 'GreaterThanThreshold', default_period, default_evaluation_periods, default_statistic,
                      'Created_by_CloudWatchAutoAlarms']),
                 'Value': alarm_memory_high_default_threshold
             }
@@ -127,7 +127,7 @@ default_alarms = {
             },
             {
                 'Key': alarm_separator.join(
-                    [alarm_identifier, cw_namespace, 'mem_used_percent', 'GreaterThanThreshold', default_period, default_evaluation_periods, default_statistic, 
+                    [alarm_identifier, cw_namespace, 'mem_used_percent', 'GreaterThanThreshold', default_period, default_evaluation_periods, default_statistic,
                      'Created_by_CloudWatchAutoAlarms']),
                 'Value': alarm_memory_high_default_threshold
             }
@@ -173,7 +173,7 @@ def lambda_handler(event, context):
                 f'Scanning for EC2 instances with tag: {create_alarm_tag} to create alarm'
             )
             scan_and_process_alarm_tags(create_alarm_tag, default_alarms, metric_dimensions_map, sns_topic_arn,
-                                   cw_namespace, create_default_alarms_flag, alarm_separator, alarm_identifier)
+                                        cw_namespace, create_default_alarms_flag, alarm_separator, alarm_identifier)
 
     except Exception as e:
         # If any other exceptions which we didn't expect are raised

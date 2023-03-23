@@ -121,7 +121,7 @@ def process_lambda_alarms(function_name, tags, activation_tag, default_alarms, s
             Statistic = alarm_properties[(5 + eval_period_offset)]
 
             AlarmName = alarm_separator.join(
-                [alarm_identifier, function_name, Namespace, MetricName, ComparisonOperator, tag['Value'],
+                [alarm_identifier, function_name, Namespace, MetricName, ComparisonOperator, str(tag['Value']),
                  Period, "{}p".format(EvaluationPeriods), Statistic])
 
             # capture optional alarm description
@@ -226,7 +226,7 @@ def create_alarm_from_tag(id, alarm_tag, instance_info, metric_dimensions_map, s
     Statistic = alarm_properties[(properties_offset + 5 + eval_period_offset)]
 
     AlarmName += alarm_separator.join(
-        ['', ComparisonOperator, alarm_tag['Value'], Period, "{}p".format(EvaluationPeriods), Statistic])
+        ['', ComparisonOperator, str(alarm_tag['Value']), str(Period), "{}p".format(EvaluationPeriods), Statistic])
 
     # add the description to the alarm name. If none are specified, log a message
     try:
