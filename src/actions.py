@@ -428,8 +428,7 @@ def delete_alarms(name, alarm_identifier, alarm_separator):
 
 
 def scan_and_process_alarm_tags(create_alarm_tag, default_alarms, metric_dimensions_map, sns_topic_arn,
-                                cw_namespace, create_default_alarms_flag, alarm_separator, alarm_identifier,
-                                evaluation_periods):
+                                cw_namespace, create_default_alarms_flag, alarm_separator, alarm_identifier):
     try:
         ec2_client = boto3_client('ec2')
         for reservation in ec2_client.describe_instances()["Reservations"]:
