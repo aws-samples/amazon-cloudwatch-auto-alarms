@@ -184,6 +184,44 @@ Resources:
         - Arn: !GetAtt LambdaFunction.Arn
           Id: LATEST
 
+  CloudWatchAutoAlarmCloudwatchEventRDSCreate:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: Initiate-CloudWatchAutoAlarmsRDSCreate
+      Description: Creates CloudWatch alarms for RDS instances with CloudWatchAutoAlarms activation tag
+      EventPattern: '
+        {
+          "detail-type": ["AWS API Call via CloudTrail"],
+          "detail": {
+            "eventSource": ["rds.amazonaws.com"],
+            "eventName": ["AddTagsToResource"]
+          }
+        }
+        '
+      State: !Ref EventState
+      Targets:
+        - Arn: !GetAtt LambdaFunction.Arn
+          Id: LATEST
+
+  CloudWatchAutoAlarmCloudwatchEventRDSDelete:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: Initiate-CloudWatchAutoAlarmsRDSDelete
+      Description: Deletes CloudWatch alarms for corresponding RDS instance is deleted
+      EventPattern: '
+        {
+          "source": ["aws.rds"],
+          "detail": {
+            "EventCategories": ["creation", "deletion"]
+          }
+        }
+        '
+      State: !Ref EventState
+      Targets:
+        - Arn: !GetAtt LambdaFunction.Arn
+          Id: LATEST
+
+
   LambdaInvokePermissionCloudwatchEventsLambda:
     Type: AWS::Lambda::Permission
     Properties:

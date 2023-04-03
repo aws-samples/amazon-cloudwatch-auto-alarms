@@ -67,7 +67,6 @@ The following list provides a description of the setting along with the environm
 
 * **ALARM_TAG**: Create_Auto_Alarms
     * The CloudWatchAutoAlarms Lambda function will only create alarms for instances that are tagged with this name tag.  The default tag name is Create_Auto_Alarms.  If you want to use a different name, change the value of the ALARM_TAG environment variable.
-      **NOTE:**  For RDS, alarms will be created for RDS clusters and instances even if they don't have this activation tag.  This is because RDS doesn't provide the ability to tag RDS clusters or instances during creation via the AWS console.
 * **CREATE_DEFAULT_ALARMS**: true
     * When true, this will result in the default alarm set being created when the **Create_Auto_Alarms** tag is present.  If set to false, then alarms will be created only for the alarm tags  defined on the instance.
 * **CLOUDWATCH_NAMESPACE**: CWAgent
