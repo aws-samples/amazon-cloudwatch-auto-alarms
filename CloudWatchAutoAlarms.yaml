@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: Automatically Create Alarms for EC2 instances
+Description: Automatically Create Alarms for EC2, RDS, and AWS Lambda
 Parameters:
   Memory:
     Description: Memory to allocate to Lambda function
@@ -159,7 +159,7 @@ Resources:
     Type: AWS::Events::Rule
     Properties:
       Name: Initiate-CloudWatchAutoAlarmsLambda
-      Description: Creates CloudWatch alarms on for lambda functions with the CloudWatchAutoAlarms activation tag
+      Description: Creates and deletes CloudWatch alarms for lambda functions with the CloudWatchAutoAlarms activation tag
       EventPattern: '
         {
           "source": [
