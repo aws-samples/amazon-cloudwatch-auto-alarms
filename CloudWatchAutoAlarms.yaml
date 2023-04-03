@@ -233,3 +233,27 @@ Resources:
       SourceArn: !GetAtt
         - CloudWatchAutoAlarmCloudwatchEventLambda
         - Arn
+
+  LambdaInvokePermissionCloudwatchEventsRDSCreate:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt
+        - LambdaFunction
+        - Arn
+      Action: 'lambda:InvokeFunction'
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt
+        - CloudWatchAutoAlarmCloudwatchEventRDSCreate
+        - Arn
+
+  LambdaInvokePermissionCloudwatchEventsRDSDelete:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt
+        - LambdaFunction
+        - Arn
+      Action: 'lambda:InvokeFunction'
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt
+        - CloudWatchAutoAlarmCloudwatchEventRDSDelete
+        - Arn
