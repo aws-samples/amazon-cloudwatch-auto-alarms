@@ -96,6 +96,10 @@ Resources:
                 Resource: !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:*:log-stream:*"
               - Effect: Allow
                 Action:
+                  - rds:ListTagsForResource
+                Resource: "*"
+              - Effect: Allow
+                Action:
                   - ec2:DescribeInstances
                   - ec2:DescribeImages
                 Resource: "*"
