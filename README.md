@@ -10,6 +10,12 @@ The default configuration creates alarms for the following Amazon EC2 metrics fo
 *  Disk Space Used % (Amazon CloudWatch agent [predefined basic metric](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/create-cloudwatch-agent-configuration-file-wizard.html))
 *  Memory Used % (Amazon CloudWatch agent [predefined basic metric](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/create-cloudwatch-agent-configuration-file-wizard.html))
 
+The default configuration creates alarms for the following [AWS RDS metrics](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/rds-metrics.html):
+
+* CPU Utilization
+
+Alarms are created for RDS clusters as well as RDS database instances.
+
 The default configuration also creates alarms for the following [AWS Lambda metrics](https://docs.aws.amazon.com/lambda/latest/dg/monitoring-metrics.html#monitoring-metrics-types):
 
 * Errors
@@ -81,6 +87,9 @@ You can update the thresholds for the default alarms by updating the following e
     * **ALARM_MEMORY_HIGH_THRESHOLD**: 75
     * **ALARM_DISK_PERCENT_LOW_THRESHOLD**: 20
 
+   **For AWS RDS**:
+    * **ALARM_RDS_CPU_HIGH_THRESHOLD**: 75
+
    **For AWS Lambda**:
     * **ALARM_LAMBDA_ERROR_THRESHOLD**: 0
     * **ALARM_LAMBDA_THROTTLE_THRESHOLD**: 0
@@ -138,6 +147,8 @@ You can update the thresholds for the default alarms by updating the following e
 
 ## Activate
 
+
+### Amazon EC2
 In order to create the default alarm set for an Amazon EC2 instance or AWS Lambda function, you simply need to tag the Amazon EC2 instance or AWS Lambda function with the activation tag key defined by the **ALARM_TAG** environment variable.  The default tag activation key is **Create_Auto_Alarms**.
 
 For Amazon EC2 instances, you must add this tag during instance launch or you can add this tag at any time to an instance and then stop and start the instance in order to create the default alarm set as well as any custom, instance specific alarms.
@@ -150,6 +161,13 @@ You can also manually invoke the CloudWatchAutoAlarms lambda function with the f
 }
 ```
 You can do this with a test execution of the CloudWatchAUtoAlarms AWS Lambda function.  Open the  AWS Lambda Management Console and perform a test invocation from the **Test** tab with the payload provided here.
+
+### Amazon RDS
+
+For Amazon RDS, you can add this tag to an RDS database cluster or database instance at any time in order to create the default alarm set as well as any custom alarms that have been specified as tags on the cluster or instance.
+
+
+### AWS Lambda
 
 For AWS Lambda, you can add this tag to an AWS Lambda function at any time in order to create the default alarm set as well as any custom, function specific alarms.
 
@@ -185,6 +203,7 @@ This syntax and approach allows you to collectively support metrics with differe
 You should also make sure that the **CLOUDWATCH_APPEND_DIMENSIONS** environment variable is set correctly in order to ensure that created alarms include these dimensions.  The lambda function will dynamically lookup the values for these dimensions at runtime.
 
 If your dimensions name uses the default separator character '-', then you can update the **alarm_separator** variable in [cw_auto_alarms.py](src/cw_auto_alarms.py) with an alternative seperator character such as '~'.
+
 ## Create a specific alarm for a specific EC2 instance using tags
 
 You can create alarms that are specific to an individual EC2 instance by adding a tag to the instance using the tag key syntax described in [changing the default alarm set](#changing-the-default-alarm-set).  Simply add a tag to the instance on launch or restart the instance after you have added the tag.  You can also update the thresholds for created alarms by updating the tag values, causing the alarm to be updated when the instance is stopped and started.

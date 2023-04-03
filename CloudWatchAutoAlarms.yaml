@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: Automatically Create Alarms for EC2 instances
+Description: Automatically Create Alarms for EC2, RDS, and AWS Lambda
 Parameters:
   Memory:
     Description: Memory to allocate to Lambda function
@@ -96,6 +96,10 @@ Resources:
                 Resource: !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:*:log-stream:*"
               - Effect: Allow
                 Action:
+                  - rds:ListTagsForResource
+                Resource: "*"
+              - Effect: Allow
+                Action:
                   - ec2:DescribeInstances
                   - ec2:DescribeImages
                 Resource: "*"
@@ -155,7 +159,7 @@ Resources:
     Type: AWS::Events::Rule
     Properties:
       Name: Initiate-CloudWatchAutoAlarmsLambda
-      Description: Creates CloudWatch alarms on for lambda functions with the CloudWatchAutoAlarms activation tag
+      Description: Creates and deletes CloudWatch alarms for lambda functions with the CloudWatchAutoAlarms activation tag
       EventPattern: '
         {
           "source": [
@@ -180,6 +184,44 @@ Resources:
         - Arn: !GetAtt LambdaFunction.Arn
           Id: LATEST
 
+  CloudWatchAutoAlarmCloudwatchEventRDSCreate:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: Initiate-CloudWatchAutoAlarmsRDSCreate
+      Description: Creates CloudWatch alarms for RDS instances with CloudWatchAutoAlarms activation tag
+      EventPattern: '
+        {
+          "detail-type": ["AWS API Call via CloudTrail"],
+          "detail": {
+            "eventSource": ["rds.amazonaws.com"],
+            "eventName": ["AddTagsToResource"]
+          }
+        }
+        '
+      State: !Ref EventState
+      Targets:
+        - Arn: !GetAtt LambdaFunction.Arn
+          Id: LATEST
+
+  CloudWatchAutoAlarmCloudwatchEventRDSDelete:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: Initiate-CloudWatchAutoAlarmsRDSDelete
+      Description: Deletes CloudWatch alarms for corresponding RDS instance is deleted
+      EventPattern: '
+        {
+          "source": ["aws.rds"],
+          "detail": {
+            "EventCategories": ["creation", "deletion"]
+          }
+        }
+        '
+      State: !Ref EventState
+      Targets:
+        - Arn: !GetAtt LambdaFunction.Arn
+          Id: LATEST
+
+
   LambdaInvokePermissionCloudwatchEventsLambda:
     Type: AWS::Lambda::Permission
     Properties:
@@ -190,4 +232,28 @@ Resources:
       Principal: events.amazonaws.com
       SourceArn: !GetAtt
         - CloudWatchAutoAlarmCloudwatchEventLambda
+        - Arn
+
+  LambdaInvokePermissionCloudwatchEventsRDSCreate:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt
+        - LambdaFunction
+        - Arn
+      Action: 'lambda:InvokeFunction'
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt
+        - CloudWatchAutoAlarmCloudwatchEventRDSCreate
+        - Arn
+
+  LambdaInvokePermissionCloudwatchEventsRDSDelete:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt
+        - LambdaFunction
+        - Arn
+      Action: 'lambda:InvokeFunction'
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt
+        - CloudWatchAutoAlarmCloudwatchEventRDSDelete
         - Arn

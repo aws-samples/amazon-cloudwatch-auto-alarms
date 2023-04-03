@@ -81,6 +81,78 @@ def check_alarm_tag(instance_id, tag_key):
         raise
 
 
+def get_tags_for_rds_instance(db_instance_arn):
+    try:
+        rds_client = boto3_client('rds')
+        response = rds_client.list_tags_for_resource(
+            ResourceName=db_instance_arn,
+        )
+
+        return response.get('TagList', None)
+
+    except Exception as e:
+        logger.error('Getting dimensions: {}'.format(e))
+        raise
+
+
+def process_rds_alarms(db_arn, is_cluster, activation_tag, default_alarms, sns_topic_arn, alarm_separator,
+                       alarm_identifier, tags):
+    activation_tag = [{'Key': activation_tag} for tag in tags if tag.get("key", None) == activation_tag]
+    if not len(activation_tag) > 0:
+        logger.debug('Activation tag not found for {}, nothing to do'.format(db_arn))
+        return True
+    else:
+        logger.debug('Processing db specific custom alarms for: {}'.format(db_arn))
+        for tag in tags:
+            if tag["key"].startswith(alarm_identifier):
+                logger.info('Alarm identifier found: processing db specific alarms for: {}'.format(
+                    db_arn))
+                default_alarms['AWS/RDS'].append({'Key': tag["key"], 'Value': tag.get("value", "")})
+
+    # set the default dimensions for AWS/RDS
+    db_id = db_arn.split(':')[-1]
+    dimensions = list()
+
+    if is_cluster:
+        dimensions.append(
+            {
+                'Name': 'DBClusterIdentifier',
+                'Value': db_id
+            }
+        )
+    else:
+        dimensions.append(
+            {
+                'Name': 'DBInstanceIdentifier',
+                'Value': db_id
+            }
+        )
+
+    for tag in default_alarms['AWS/RDS']:
+        alarm_properties = tag['Key'].split(alarm_separator)
+        Namespace = alarm_properties[1]
+        MetricName = alarm_properties[2]
+        ComparisonOperator = alarm_properties[3]
+        Period = alarm_properties[4]
+        EvaluationPeriods = alarm_properties[5]
+        Statistic = alarm_properties[6]
+
+    AlarmName = alarm_separator.join(
+        [alarm_identifier, db_id, Namespace, MetricName, ComparisonOperator, str(tag['Value']),
+         Period, "{}p".format(EvaluationPeriods), Statistic])
+
+    # capture optional alarm description
+    try:
+        AlarmDescription = alarm_properties[7]
+        AlarmName += alarm_separator + AlarmDescription
+    except:
+        logger.info('Description not supplied')
+        AlarmDescription = None
+
+    create_alarm(AlarmName, AlarmDescription, MetricName, ComparisonOperator, Period, tag['Value'], Statistic,
+                 Namespace, dimensions, EvaluationPeriods, sns_topic_arn)
+
+
 def process_lambda_alarms(function_name, tags, activation_tag, default_alarms, sns_topic_arn, alarm_separator,
                           alarm_identifier):
     activation_tag = tags.get(activation_tag, 'not_found')
@@ -88,7 +160,7 @@ def process_lambda_alarms(function_name, tags, activation_tag, default_alarms, s
         logger.debug('Activation tag not found for {}, nothing to do'.format(function_name))
         return True
     else:
-        logger.debug('Processing function specific alarms for: {}'.format(default_alarms))
+        logger.debug('Processing function specific alarms for: {}'.format(function_name))
         for tag_key in tags:
             if tag_key.startswith(alarm_identifier):
                 default_alarms['AWS/Lambda'].append({'Key': tag_key, 'Value': tags[tag_key]})
@@ -404,21 +476,23 @@ def create_alarm(AlarmName, AlarmDescription, MetricName, ComparisonOperator, Pe
 def delete_alarms(name, alarm_identifier, alarm_separator):
     try:
         AlarmNamePrefix = alarm_separator.join([alarm_identifier, name])
+        AlarmNamePrefix += alarm_separator
         cw_client = boto3_client('cloudwatch')
-        logger.info('calling describe alarms with prefix {}'.format(AlarmNamePrefix))
+        logger.debug('calling describe alarms with prefix {}'.format(AlarmNamePrefix))
         response = cw_client.describe_alarms(
             AlarmNamePrefix=AlarmNamePrefix,
         )
         alarm_list = []
-        logger.info('Response from describe_alarms(): {}'.format(response))
+        logger.debug('Response from describe_alarms(): {}'.format(response))
         if 'MetricAlarms' in response:
             for alarm in response['MetricAlarms']:
                 alarm_name = alarm['AlarmName']
                 alarm_list.append(alarm_name)
-        logger.info('deleting {} for {}'.format(alarm_list, name))
-        response = cw_client.delete_alarms(
-            AlarmNames=alarm_list
-        )
+        if alarm_list:
+            logger.info('deleting {} for {}'.format(alarm_list, name))
+            cw_client.delete_alarms(
+                AlarmNames=alarm_list
+            )
         return True
     except Exception as e:
         # If any other exceptions which we didn't expect are raised
