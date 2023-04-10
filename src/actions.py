@@ -45,7 +45,7 @@ def check_alarm_tag(instance_id, tag_key):
         instance = ec2_client.describe_instances(
             Filters=[
                 {
-                    'Name': 'tag:tag-key',
+                    'Name': 'tag-key',
                     'Values': [
                         tag_key
                     ]
