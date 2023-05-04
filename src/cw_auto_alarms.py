@@ -103,7 +103,7 @@ default_alarms = {
         'Amazon Linux': [
             {
                 'Key': alarm_separator.join(
-                    [alarm_identifier, cw_namespace, 'disk_used_percent', 'device', 'xvda1', 'fstype', 'xfs', 'path',
+                    [alarm_identifier, cw_namespace, 'disk_used_percent', 'device', 'nvme0n1p1', 'fstype', 'xfs', 'path',
                      '/', 'GreaterThanThreshold', default_period, default_evaluation_periods, default_statistic,
                      'Created_by_CloudWatchAutoAlarms']),
                 'Value': alarm_disk_used_percent_threshold
