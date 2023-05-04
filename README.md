@@ -80,7 +80,8 @@ The following list provides a description of the setting along with the environm
 
 You can update the thresholds for the default alarms by updating the following environment variables:
 
-
+   **For Anomaly Detection Alarms**:
+    * **ALARM_DEFAULT_ANOMALY_THRESHOLD**: 2
    **For Amazon EC2**:
     * **ALARM_CPU_HIGH_THRESHOLD**: 75
     * **ALARM_CPU_CREDIT_BALANCE_LOW_THRESHOLD**: 100
@@ -183,6 +184,31 @@ This syntax doesn't include any dimension names because the InstanceId dimension
 Similarly, AWS Lambda metrics include the **FunctionName** dimension to uniquely identify each standard metric associated with an AWS Lambda function.  If you want to add an alarm based upon a standard AWS Lambda metric, then you can use the tag name syntax:
 AutoAlarm-AWS/Lambda-\<**MetricName**>-\<**ComparisonOperator**>-\<**Period**>-\<**EvaluationPeriods**>-\<**Statistic**>-\<**Description**>
 You can add any standard Amazon CloudWatch metric for Amazon EC2 or AWS Lambda into the **default_alarms** dictionary under the **AWS/EC2** or **AWS/Lambda** dictionary key using this tag syntax.
+
+## Creating CloudWatch Anomaly Detection Alarms
+
+CloudWatch Anomaly Detection Alarms are supported using the comparison operators `LessThanLowerOrGreaterThanUpperThreshold`, `LessThanLowerThreshold`, or `GreaterThanUpperThreshold`.
+
+When you specify one of these comparison operators, the solution creates an anomaly detection alarm and uses the value for the tag key as the threshold.  Refer to the C[loudWatch documentation for more details on the threshold and anomaly detection](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch_Anomaly_Detection.html).
+
+CloudWatch Anomaly detection uses machine learning models based on the metric, dimensions, and statistic chosen.  If you create an alarm without a current model, CloudWatch Alarms creates a new model using these parameters from your alarm configuration.  
+For new models, it can take up to 3 hours for the actual anomaly detection band to appear in your graph. It can take up to two weeks for the new model to train, so the anomaly detection band shows more accurate expected values.  Refer to the documentation for more details.
+
+The solution includes commented out code for creating a CloudWatch Anomaly Detection Alarm for CPU Utilization in the `default_alarms` dictionary: 
+
+```python
+        # This is an example alarm using anomaly detection
+        # {
+        #     'Key': alarm_separator.join(
+        #         [alarm_identifier, 'AWS/EC2', 'CPUUtilization', 'GreaterThanUpperThreshold', default_period,
+        #          default_evaluation_periods, default_statistic, 'Created_by_CloudWatchAutoAlarms']),
+        #     'Value': alarm_cpu_high_anomaly_detection_default_threshold
+        # }
+```
+
+You can uncomment and update this code to test out anomaly detection support.  
+
+The solution implements the environment variable `ALARM_DEFAULT_ANOMALY_THRESHOLD` as an example threshold you can use for your anomaly detection alarms.
 
 ## Alarming on custom Amazon EC2 metrics
 
