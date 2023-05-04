@@ -1,4 +1,5 @@
 import logging
+
 from actions import check_alarm_tag, process_alarm_tags, delete_alarms, process_lambda_alarms, \
     scan_and_process_alarm_tags, process_rds_alarms
 from os import getenv
@@ -18,6 +19,7 @@ append_dimensions = getenv("CLOUDWATCH_APPEND_DIMENSIONS", 'InstanceId, ImageId,
 append_dimensions = [dimension.strip() for dimension in append_dimensions.split(',')]
 
 alarm_cpu_high_default_threshold = getenv("ALARM_CPU_HIGH_THRESHOLD", "75")
+alarm_cpu_high_anomaly_detection_default_threshold = getenv("ALARM_DEFAULT_ANOMALY_THRESHOLD", "2")
 alarm_memory_high_default_threshold = getenv("ALARM_MEMORY_HIGH_THRESHOLD", "75")
 alarm_disk_space_percent_free_threshold = getenv("ALARM_DISK_PERCENT_LOW_THRESHOLD", "20")
 alarm_disk_used_percent_threshold = 100 - int(alarm_disk_space_percent_free_threshold)
@@ -57,7 +59,14 @@ default_alarms = {
                 [alarm_identifier, 'AWS/EC2', 'CPUUtilization', 'GreaterThanThreshold', default_period,
                  default_evaluation_periods, default_statistic, 'Created_by_CloudWatchAutoAlarms']),
             'Value': alarm_cpu_high_default_threshold
-        }
+        },
+        # This is an example alarm using anomaly detection
+        # {
+        #     'Key': alarm_separator.join(
+        #         [alarm_identifier, 'AWS/EC2', 'CPUUtilization', 'GreaterThanUpperThreshold', default_period,
+        #          default_evaluation_periods, default_statistic, 'Created_by_CloudWatchAutoAlarms']),
+        #     'Value': alarm_cpu_high_anomaly_detection_default_threshold
+        # }
     ],
     'AWS/Lambda': [
         {

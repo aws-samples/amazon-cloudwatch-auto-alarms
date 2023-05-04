@@ -10,7 +10,11 @@ level = logging.getLevelName(log_level)
 logger.setLevel(level)
 
 valid_comparators = ['GreaterThanOrEqualToThreshold', 'GreaterThanThreshold', 'LessThanThreshold',
-                     'LessThanOrEqualToThreshold']
+                     'LessThanOrEqualToThreshold', "LessThanLowerOrGreaterThanUpperThreshold", "LessThanLowerThreshold",
+                     "GreaterThanUpperThreshold"]
+
+valid_anomaly_detection_comparators = ["LessThanLowerOrGreaterThanUpperThreshold", "LessThanLowerThreshold",
+                                       "GreaterThanUpperThreshold"]
 
 valid_statistics = ['Average', 'SampleCount', 'Sum', 'Minimum', 'Maximum']
 
@@ -446,18 +450,38 @@ def create_alarm(AlarmName, AlarmDescription, MetricName, ComparisonOperator, Pe
     try:
         cw_client = boto3_client('cloudwatch')
 
+        metrics = [{
+            'Id': 'm1',
+            'MetricStat': {
+                'Metric': {
+                    'MetricName': MetricName,
+                    'Namespace': Namespace,
+                    'Dimensions': Dimensions
+                },
+                'Stat': Statistic,
+                'Period': Period
+            },
+        }]
+
         alarm = {
             'AlarmName': AlarmName,
             'AlarmDescription': AlarmDescription,
-            'MetricName': MetricName,
-            'Namespace': Namespace,
-            'Dimensions': Dimensions,
-            'Period': Period,
             'EvaluationPeriods': int(EvaluationPeriods),
-            'Threshold': Threshold,
             'ComparisonOperator': ComparisonOperator,
-            'Statistic': Statistic
+            'Metrics': metrics
         }
+
+        if ComparisonOperator in valid_anomaly_detection_comparators:
+            metrics.append(
+                {
+                    'Id': 't1',
+                    'Label': 't1',
+                    'Expression': "ANOMALY_DETECTION_BAND(m1, {})".format(Threshold),
+                }
+            )
+            alarm['ThresholdMetricId'] = 't1'
+        else:
+            alarm['Threshold'] = Threshold
 
         if sns_topic_arn is not None:
             alarm['AlarmActions'] = [sns_topic_arn]
