@@ -74,7 +74,7 @@ The following list provides a description of the setting along with the environm
 * **CLOUDWATCH_APPEND_DIMENSIONS**: InstanceId, ImageId, InstanceType, AutoScalingGroupName
     * You can add EC2 metric dimensions to all metrics collected by the CloudWatch agent.  This environment variable aligns to your CloudWatch configuration setting for [**append_dimensions**](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch-Agent-Configuration-File-Details.html#CloudWatch-Agent-Configuration-File-Metricssection).  The default setting includes all the supported dimensions:  InstanceId, ImageId, InstanceType, AutoScalingGroupName
 * **DEFAULT_ALARM_SNS_TOPIC_ARN**:  arn:${AWS::Partition}:sns:${AWS::Region}:${AWS::AccountId}:CloudWatchAutoAlarmsSNSTopic
-    * You can define an Amazon Simple Notification Service (Amazon SNS) topic that the Lambda function will specify as the notification target for created alarms. You provide the Amazon SNS Topic Amazon Resource Name (ARN) with the **AlarmNotificationARN** parameter when you deploy the CloudWatchAutoAlarms.yaml CloudFormation template.  If you leave the **AlarmNotificationARN** parameter value blank, then this environment variable is not set and created alarms won't use notifications.
+    * You can define an Amazon Simple Notification Service (Amazon SNS) topic that the Lambda function will specify as the notification target for created alarms. The deployment instructions include an SNS topic that you can deploy and use with the solution.  You provide the Amazon SNS Topic Amazon Resource Name (ARN) with the **AlarmNotificationARN** parameter when you deploy the CloudWatchAutoAlarms.yaml CloudFormation template.  If you leave the **AlarmNotificationARN** parameter value blank, then this environment variable is not set and created alarms won't use notifications.  The solution also enables you to specify a unique SNS topic per AWS resource by including a tag with key **`notify`** with the value set to the SNS topic ARN that should be targeted for alarms for that specific resource.
 * **ALARM_IDENTIFIER_PREFIX**:  AutoAlarm
     * The prefix name that is added to the beginning of each CloudWatch alarm created by the solution.  (e.g. For "AutoAlarm":  (e.g. AutoAlarm-i-00e4f327736cb077f-CPUUtilization-GreaterThanThreshold-80-5m))  You should update this variable via the **AlarmIdentifierPrefix** in the [CloudWatchAutoAlarms.yaml](./CloudWatchAutoAlarms.yaml) CloudFormation template so that the IAM policy is updated to align with your custom name.
 
@@ -172,6 +172,14 @@ For Amazon RDS, you can add this tag to an RDS database cluster or database inst
 
 For AWS Lambda, you can add this tag to an AWS Lambda function at any time in order to create the default alarm set as well as any custom, function specific alarms.
 
+
+## Notification Support
+
+You can define an Amazon Simple Notification Service (Amazon SNS) topic that the Lambda function will specify as the notification target for created alarms. The deployment instructions include an SNS topic that you can deploy and use with the solution.  You provide the Amazon SNS Topic Amazon Resource Name (ARN) with the **AlarmNotificationARN** parameter when you deploy the CloudWatchAutoAlarms.yaml CloudFormation template.  This parameter sets the **`DEFAULT_ALARM_SNS_TOPIC_ARN`** environment variable to the ARN you specified.  If you leave the **AlarmNotificationARN** parameter value blank, then this environment variable is not set and created alarms won't use notifications.  
+
+The solution also enables you to specify a unique SNS topic per AWS resource by setting a tag with key **`notify`** and the value set to the SNS topic ARN that should be targeted for alarms for that specific resource.  For any resources that don't have the **`notify`** tag set, the default SNS topic ARN will be used. 
+
+You can apply a tagging strategy that includes the **`notify`** tag for groups of resources to notify on specific groups of resources.  For example, consider a tag with key **`Team`** and value **`Windows`**.  You could align tagging of this specific key / value with the SNS topic for Windows support(e.g. **`notify`**: arn:aws:sns:us-east-1:123456789012:WindowsSupport)
 
 ## Changing the default alarm set
 

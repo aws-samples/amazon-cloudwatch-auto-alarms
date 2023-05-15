@@ -183,7 +183,14 @@ def lambda_handler(event, context):
 
             # instance has been tagged for alarming, confirm an alarm doesn't already exist
             if instance_info:
-                process_alarm_tags(instance_id, instance_info, default_alarms, metric_dimensions_map, sns_topic_arn,
+                instance_sns_target = [instance_tag['Value'] for instance_tag in instance_info['Tags'] if
+                                       instance_tag['Key'] == 'notify']
+                if len(instance_sns_target) > 0:
+                    target_sns_topic_arn = instance_sns_target[0]
+                else:
+                    target_sns_topic_arn = sns_topic_arn
+                process_alarm_tags(instance_id, instance_info, default_alarms, metric_dimensions_map,
+                                   target_sns_topic_arn,
                                    cw_namespace, create_default_alarms_flag, alarm_separator, alarm_identifier)
         elif 'source' in event and event['source'] == 'aws.ec2' and event['detail']['state'] == 'terminated':
             instance_id = event['detail']['instance-id']
@@ -193,8 +200,15 @@ def lambda_handler(event, context):
             logger.debug(
                 'Tag Lambda Function event occurred, tags are: {}'.format(event['detail']['requestParameters']['tags']))
             tags = event['detail']['requestParameters']['tags']
+
+            if 'notify' in tags.keys():
+                target_sns_topic_arn = tags['notify']
+            else:
+                target_sns_topic_arn = sns_topic_arn
+
             function = event['detail']['requestParameters']['resource'].split(":")[-1]
-            process_lambda_alarms(function, tags, create_alarm_tag, default_alarms, sns_topic_arn, alarm_separator,
+            process_lambda_alarms(function, tags, create_alarm_tag, default_alarms, target_sns_topic_arn,
+                                  alarm_separator,
                                   alarm_identifier)
         elif 'source' in event and event['source'] == 'aws.lambda' and event['detail'][
             'eventName'] == 'DeleteFunction20150331':
@@ -206,6 +220,14 @@ def lambda_handler(event, context):
             logger.info(
                 'Tag RDS event occurred, tags are: {}'.format(event['detail']['requestParameters']['tags']))
             tags = event['detail']['requestParameters']['tags']
+
+            instance_sns_target = [tag['value'] for tag in tags if tag.get("key", None) == 'notify']
+
+            if len(instance_sns_target) > 0:
+                target_sns_topic_arn = instance_sns_target[0]
+            else:
+                target_sns_topic_arn = sns_topic_arn
+
             db_arn = event['detail']['requestParameters']['resourceName']
             if 'cluster' in db_arn:
                 is_cluster = True
@@ -213,7 +235,8 @@ def lambda_handler(event, context):
                 is_cluster = False
 
             logger.info('Tag DB event occurred for RDS: {}'.format(db_arn))
-            process_rds_alarms(db_arn, is_cluster, create_alarm_tag, default_alarms, sns_topic_arn, alarm_separator,
+            process_rds_alarms(db_arn, is_cluster, create_alarm_tag, default_alarms, target_sns_topic_arn,
+                               alarm_separator,
                                alarm_identifier, tags)
         # Event for RDS database instance deletion:  https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_Events.Messages.html
         elif 'source' in event and event['source'] == 'aws.rds' and 'EventCategories' in event[

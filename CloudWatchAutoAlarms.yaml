@@ -28,9 +28,6 @@ Parameters:
     Default: AutoAlarm
 
 
-Conditions:
-  ConfigureAlarmNotifications: !Not [!Equals ["", !Ref AlarmNotificationARN]]
-
 Resources:
   LambdaFunction:
     Type: AWS::Lambda::Function
@@ -60,7 +57,7 @@ Resources:
           ALARM_LAMBDA_ERROR_THRESHOLD: 0
           ALARM_LAMBDA_THROTTLE_THRESHOLD: 0
 
-          DEFAULT_ALARM_SNS_TOPIC_ARN: !If [ConfigureAlarmNotifications, !Ref AlarmNotificationARN, !Ref "AWS::NoValue"]
+          DEFAULT_ALARM_SNS_TOPIC_ARN: !Ref AlarmNotificationARN
 
   CloudWatchAutoAlarmLambdaRole:
     Type: AWS::IAM::Role
