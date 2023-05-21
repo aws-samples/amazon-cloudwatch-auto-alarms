@@ -23,22 +23,27 @@ alarm_cpu_high_anomaly_detection_default_threshold = getenv("ALARM_DEFAULT_ANOMA
 alarm_memory_high_default_threshold = getenv("ALARM_MEMORY_HIGH_THRESHOLD", "75")
 alarm_disk_space_percent_free_threshold = getenv("ALARM_DISK_PERCENT_LOW_THRESHOLD", "20")
 alarm_disk_used_percent_threshold = 100 - int(alarm_disk_space_percent_free_threshold)
+default_period = getenv("ALARM_DEFAULT_PERIOD", "5m")
+default_evaluation_periods = getenv("ALARM_DEFAULT_EVALUATION_PERIOD", "1")
+default_statistic = getenv("ALARM_DEFAULT_STATISTIC", "Average")
 
 alarm_rds_cpu_high_default_threshold = getenv("ALARM_RDS_CPU_HIGH_THRESHOLD", "75")
+default_rds_period = getenv("ALARM_DEFAULT_RDS_PERIOD", "5m")
+default_rds_evaluation_periods = getenv("ALARM_DEFAULT_RDS_EVALUATION_PERIOD", "1")
+default_rds_statistic = getenv("ALARM_DEFAULT_RDS_STATISTIC", "Average")
 
 alarm_lambda_error_threshold = getenv("ALARM_LAMBDA_ERROR_THRESHOLD", "1")
 alarm_lambda_throttles_threshold = getenv("ALARM_LAMBDA_THROTTLE_THRESHOLD", "1")
 alarm_lambda_dead_letter_error_threshold = getenv("ALARM_LAMBDA_DEAD_LETTER_ERROR_THRESHOLD", "1")
 alarm_lambda_destination_delivery_failure_threshold = getenv("ALARM_LAMBDA_DESTINATION_DELIVERY_FAILURE_THRESHOLD", "1")
+default_lambda_period = getenv("ALARM_DEFAULT_LAMBDA_PERIOD", "5m")
+default_lambda_evaluation_periods = getenv("ALARM_DEFAULT_LAMBDA_EVALUATION_PERIOD", "1")
+default_lambda_statistic = getenv("ALARM_DEFAULT_LAMBDA_STATISTIC", "Average")
 
 sns_topic_arn = getenv("DEFAULT_ALARM_SNS_TOPIC_ARN", None)
 
 alarm_separator = '-'
 alarm_identifier = getenv("ALARM_IDENTIFIER_PREFIX", 'AutoAlarm')
-
-default_period = '5m'
-default_evaluation_periods = '1'
-default_statistic = 'Average'
 
 # For Redhat, the default device is xvda2, xfs, for Ubuntu, the default fstype is ext4,
 # for Amazon Linux, the default device is xvda1, xfs
@@ -48,8 +53,8 @@ default_alarms = {
     'AWS/RDS': [
         {
             'Key': alarm_separator.join(
-                [alarm_identifier, 'AWS/RDS', 'CPUUtilization', 'GreaterThanThreshold', default_period,
-                 default_evaluation_periods, default_statistic, 'Created_by_CloudWatchAutoAlarms']),
+                [alarm_identifier, 'AWS/RDS', 'CPUUtilization', 'GreaterThanThreshold', default_rds_period,
+                 default_rds_evaluation_periods, default_rds_statistic, 'Created_by_CloudWatchAutoAlarms']),
             'Value': alarm_rds_cpu_high_default_threshold
         }
     ],
@@ -71,14 +76,14 @@ default_alarms = {
     'AWS/Lambda': [
         {
             'Key': alarm_separator.join(
-                [alarm_identifier, 'AWS/Lambda', 'Errors', 'GreaterThanThreshold', default_period,
-                 default_evaluation_periods, default_statistic, 'Created_by_CloudWatchAutoAlarms']),
+                [alarm_identifier, 'AWS/Lambda', 'Errors', 'GreaterThanThreshold', default_lambda_period,
+                 default_lambda_evaluation_periods, default_lambda_statistic, 'Created_by_CloudWatchAutoAlarms']),
             'Value': alarm_lambda_error_threshold
         },
         {
             'Key': alarm_separator.join(
-                [alarm_identifier, 'AWS/Lambda', 'Throttles', 'GreaterThanThreshold', default_period,
-                 default_evaluation_periods, default_statistic, 'Created_by_CloudWatchAutoAlarms']),
+                [alarm_identifier, 'AWS/Lambda', 'Throttles', 'GreaterThanThreshold', default_lambda_period,
+                 default_lambda_evaluation_periods, default_lambda_statistic, 'Created_by_CloudWatchAutoAlarms']),
             'Value': alarm_lambda_throttles_threshold
         }
     ],
