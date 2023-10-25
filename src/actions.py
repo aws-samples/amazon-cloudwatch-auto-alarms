@@ -483,7 +483,7 @@ def create_alarm(AlarmName, AlarmDescription, MetricName, ComparisonOperator, Pe
         else:
             alarm['Threshold'] = Threshold
 
-        if sns_topic_arn is not None:
+        if sns_topic_arn and sns_topic_arn != '':
             alarm['AlarmActions'] = [sns_topic_arn]
 
         cw_client.put_metric_alarm(**alarm)
