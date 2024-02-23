@@ -45,7 +45,9 @@ Resources:
             - OrgEnabledAccess
             - Sid: 'allow org to publish to sns topic'
               Effect: Allow
-              Principal: "*"
+              Principal:
+              Service:
+                - cloudwatch.amazonaws.com
               Action:
                 - sns:Publish
               Resource:

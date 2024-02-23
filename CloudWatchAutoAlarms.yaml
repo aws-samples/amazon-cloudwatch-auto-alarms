@@ -8,7 +8,7 @@ Parameters:
     MinValue: 128
     MaxValue: 3008
   EventState:
-    Description: Whether Cloudwatch event schedule is enabled or disabled
+    Description: Create Cloudwatch event to trigger execution on instance start / terminate.
     Type: String
     Default: ENABLED
   S3DeploymentBucket:
@@ -80,6 +80,7 @@ Resources:
               - Effect: Allow
                 Action:
                   - cloudwatch:PutMetricData
+                  - cloudwatch:ListMetrics
                 Resource: "*"
               - Effect: Allow
                 Action:
@@ -152,6 +153,32 @@ Resources:
       Targets:
         - Arn: !GetAtt LambdaFunction.Arn
           Id: LATEST
+
+  CloudWatchAutoAlarmScheduledRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: "Execute CloudWatchAutoAlarms on schedule"
+      ScheduleExpression: "rate(1 day)"
+      State: "ENABLED"
+      Targets:
+        - Arn: !GetAtt LambdaFunction.Arn
+          Id: LATEST
+          Input: '
+          {
+          "action": "scan"
+          }
+          '
+
+  CloudWatchAutoAlarmPermissionForEventsToInvokeLambda:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref "LambdaFunction"
+      Action: "lambda:InvokeFunction"
+      Principal: "events.amazonaws.com"
+      SourceArn:
+        Fn::GetAtt:
+          - "CloudWatchAutoAlarmScheduledRule"
+          - "Arn"
 
   CloudWatchAutoAlarmCloudwatchEventLambda:
     Type: AWS::Events::Rule
