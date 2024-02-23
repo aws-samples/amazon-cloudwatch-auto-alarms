@@ -148,7 +148,6 @@ You can update the thresholds for the default alarms by updating the following e
 
 ## Activate
 
-
 ### Amazon EC2
 In order to create the default alarm set for an Amazon EC2 instance or AWS Lambda function, you simply need to tag the Amazon EC2 instance or AWS Lambda function with the activation tag key defined by the **ALARM_TAG** environment variable.  The default tag activation key is **Create_Auto_Alarms**.
 
@@ -161,7 +160,9 @@ You can also manually invoke the CloudWatchAutoAlarms lambda function with the f
   "action": "scan"
 }
 ```
-You can do this with a test execution of the CloudWatchAUtoAlarms AWS Lambda function.  Open the  AWS Lambda Management Console and perform a test invocation from the **Test** tab with the payload provided here.
+You can do this with a test execution of the CloudWatchAUtoAlarms AWS Lambda function.  Open the AWS Lambda Management Console and perform a test invocation from the **Test** tab with the payload provided here.
+
+The [CloudWatchAutoAlarms.yaml](CloudWatchAutoAlarms.yaml) template includes two CloudWatch event rules.  One invokes the Lambda function on `running` and `terminated` instance states.  The other invokes the Lambda function on a daily schedule.  The daily scheduled event will update any existing alarms and also create any alarms with wildcard tags. 
 
 ### Amazon RDS
 
@@ -192,6 +193,77 @@ This syntax doesn't include any dimension names because the InstanceId dimension
 Similarly, AWS Lambda metrics include the **FunctionName** dimension to uniquely identify each standard metric associated with an AWS Lambda function.  If you want to add an alarm based upon a standard AWS Lambda metric, then you can use the tag name syntax:
 AutoAlarm-AWS/Lambda-\<**MetricName**>-\<**ComparisonOperator**>-\<**Period**>-\<**EvaluationPeriods**>-\<**Statistic**>-\<**Description**>
 You can add any standard Amazon CloudWatch metric for Amazon EC2 or AWS Lambda into the **default_alarms** dictionary under the **AWS/EC2** or **AWS/Lambda** dictionary key using this tag syntax.
+
+## Wildcard support for dimension values on EC2 instance alarms
+
+The solution allows you to specify a wildcard for a dimension value in order to create CloudWatch alarms for all dimension values.  This is particularly useful for creating alarms for all partitions and drives on a system or where the value of a dimension is not known or can vary across EC2 instances.
+
+For example, the CloudWatch agent publishes the `disk_used_percent` metric for disks attached to an EC2 instance.  The dimensions for this metric for Amazon Linux are `device name`, `fstype`, and `path`.
+
+The alarm tag for this metric is hardcoded in the `default_alarms` python dictionary in `cw_auto_alarms.py` to create an alarm for the root volume whose default dimensions and values are: 
+
+* device: nvme0n1p1
+* fstype: xfs
+* path: /
+
+this is equivalent to the following default tag in the solution: 
+
+```
+AutoAlarm-CWAgent-disk_used_percent-device-nvme0n1p1-fstype-xfs-path-/-GreaterThanThreshold-5m-1-Average-Created_by_CloudWatchAutoAlarms
+```
+
+If you want to alarm on all disks attached to an EC2 instance then you must specify the device name, file system type, and path dimension values for each disk, which will vary.  Each EC2 instance may also have a different number of disks and different dimension values.
+
+The solution addresses this requirement by allowing you to specify a wildcard for the dimension value.  For example, the Alarm tag for `disk_used_percent` For Amazon Linux specified in the `default_alarms` dictionary would change to:
+
+```python
+                {
+                    'Key': alarm_separator.join(
+                        [alarm_identifier, cw_namespace, 'disk_used_percent', 'device', '*', 'fstype', 'xfs', 'path',
+                         '*', 'GreaterThanThreshold', default_period, default_evaluation_periods, default_statistic,
+                         'Created_by_CloudWatchAutoAlarms']),
+                    'Value': alarm_disk_used_percent_threshold
+                },
+```
+
+This yields the equivalent alarm tag:
+
+```
+AutoAlarm-CWAgent-disk_used_percent-device-*-fstype-xfs-path-*-GreaterThanThreshold-5m-1-Average-Created_by_CloudWatchAutoAlarms
+```
+
+In this example, we have specified a wildcard for the `device` and `path` dimensions.  Using this example, the solution will query CloudWatch metrics and create an alarm for each unique device and path dimension values for each Amazon Linux instance.  
+
+If your EC2 instance had two disks with the following dimensions:
+
+*Disk 1*
+* device: nvme0n1p1
+* fstype: xfs
+* path: /
+
+*Disk 2*
+* device: nvme1n1p1
+* fstype: xfs
+* path: /disk2
+
+Then two alarms would be created using a `*` wildcard for the `device` and `path` dimensions:
+* AutoAlarm-\<InstanceId>-CWAgent-disk_used_percent-device-xvda1-fstype-xfs-path-/-GreaterThanThreshold-80-5m-1p-Average-Created_by_CloudWatchAutoAlarms
+* AutoAlarm-\<InstanceId>-CWAgent-disk_used_percent-device-nvme1n1-fstype-xfs-path-/drive2-GreaterThanThreshold-80-5m-1p-Average-Created_by_CloudWatchAutoAlarms
+
+
+In order to identify the dimension values, the solution queries CloudWatch metrics to identify all metrics that match the fixed dimension values for the metric name specified.  It then iterates through the dimensions whose values are specified as a wildcard to identify the specific dimension values required for the alarm. 
+
+Because the solution relies on the available metrics in CloudWatch, it will only work after the CloudWatch agent has published and sent metrics to the CloudWatch service.  Since the solution is designed to run on instance launch, these metrics will not be available on first start since the CloudWatch service will not have received them yet.  
+
+In order to resolve this, you should schedule the solution to run on schedule using the `scan` payload:
+```json 
+{
+"action": "scan"
+}
+```
+
+This will provide sufficient time for the CloudWatch agent to publish metrics for new instances.  You can schedule the frequency of execution based on the acceptable timeframe for which wildcard based alarms for new instances are not yet created.
+
 
 ## Creating CloudWatch Anomaly Detection Alarms
 

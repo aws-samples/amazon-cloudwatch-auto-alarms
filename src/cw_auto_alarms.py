@@ -1,7 +1,7 @@
 import logging
 
 from actions import check_alarm_tag, process_alarm_tags, delete_alarms, process_lambda_alarms, \
-    scan_and_process_alarm_tags, process_rds_alarms
+    scan_and_process_alarm_tags, process_rds_alarms, separate_wildcard_alarms
 from os import getenv
 
 logger = logging.getLogger()
@@ -40,133 +40,6 @@ default_period = '5m'
 default_evaluation_periods = '1'
 default_statistic = 'Average'
 
-# For Redhat, the default device is xvda2, xfs, for Ubuntu, the default fstype is ext4,
-# for Amazon Linux, the default device is xvda1, xfs
-default_alarms = {
-    # default<number> added to the end of the key to  make the key unique
-    # this differentiate alarms with similar settings but different thresholds
-    'AWS/RDS': [
-        {
-            'Key': alarm_separator.join(
-                [alarm_identifier, 'AWS/RDS', 'CPUUtilization', 'GreaterThanThreshold', default_period,
-                 default_evaluation_periods, default_statistic, 'Created_by_CloudWatchAutoAlarms']),
-            'Value': alarm_rds_cpu_high_default_threshold
-        }
-    ],
-    'AWS/EC2': [
-        {
-            'Key': alarm_separator.join(
-                [alarm_identifier, 'AWS/EC2', 'CPUUtilization', 'GreaterThanThreshold', default_period,
-                 default_evaluation_periods, default_statistic, 'Created_by_CloudWatchAutoAlarms']),
-            'Value': alarm_cpu_high_default_threshold
-        },
-        # This is an example alarm using anomaly detection
-        # {
-        #     'Key': alarm_separator.join(
-        #         [alarm_identifier, 'AWS/EC2', 'CPUUtilization', 'GreaterThanUpperThreshold', default_period,
-        #          default_evaluation_periods, default_statistic, 'Created_by_CloudWatchAutoAlarms']),
-        #     'Value': alarm_cpu_high_anomaly_detection_default_threshold
-        # }
-    ],
-    'AWS/Lambda': [
-        {
-            'Key': alarm_separator.join(
-                [alarm_identifier, 'AWS/Lambda', 'Errors', 'GreaterThanThreshold', default_period,
-                 default_evaluation_periods, default_statistic, 'Created_by_CloudWatchAutoAlarms']),
-            'Value': alarm_lambda_error_threshold
-        },
-        {
-            'Key': alarm_separator.join(
-                [alarm_identifier, 'AWS/Lambda', 'Throttles', 'GreaterThanThreshold', default_period,
-                 default_evaluation_periods, default_statistic, 'Created_by_CloudWatchAutoAlarms']),
-            'Value': alarm_lambda_throttles_threshold
-        }
-    ],
-    cw_namespace: {
-        'Windows': [
-
-            {
-                'Key': alarm_separator.join(
-                    [alarm_identifier, cw_namespace, 'LogicalDisk % Free Space', 'objectname', 'LogicalDisk',
-                     'instance', 'C:', 'LessThanThreshold', default_period, default_evaluation_periods,
-                     default_statistic, 'Created_by_CloudWatchAutoAlarms']),
-                'Value': alarm_disk_space_percent_free_threshold
-            },
-            {
-                'Key': alarm_separator.join(
-                    [alarm_identifier, cw_namespace, 'Memory % Committed Bytes In Use', 'objectname', 'Memory',
-                     'GreaterThanThreshold', default_period, default_evaluation_periods, default_statistic,
-                     'Created_by_CloudWatchAutoAlarms']),
-                'Value': alarm_memory_high_default_threshold
-            }
-        ],
-        'Amazon Linux': [
-            {
-                'Key': alarm_separator.join(
-                    [alarm_identifier, cw_namespace, 'disk_used_percent', 'device', 'nvme0n1p1', 'fstype', 'xfs', 'path',
-                     '/', 'GreaterThanThreshold', default_period, default_evaluation_periods, default_statistic,
-                     'Created_by_CloudWatchAutoAlarms']),
-                'Value': alarm_disk_used_percent_threshold
-            },
-            {
-                'Key': alarm_separator.join(
-                    [alarm_identifier, cw_namespace, 'mem_used_percent', 'GreaterThanThreshold', default_period,
-                     default_evaluation_periods, default_statistic,
-                     'Created_by_CloudWatchAutoAlarms']),
-                'Value': alarm_memory_high_default_threshold
-            }
-        ],
-        'Red Hat': [
-            {
-                'Key': alarm_separator.join(
-                    [alarm_identifier, cw_namespace, 'disk_used_percent', 'device', 'xvda2', 'fstype', 'xfs', 'path',
-                     '/', 'GreaterThanThreshold', default_period, default_evaluation_periods, default_statistic,
-                     'Created_by_CloudWatchAutoAlarms']),
-                'Value': alarm_disk_used_percent_threshold
-            },
-            {
-                'Key': alarm_separator.join(
-                    [alarm_identifier, cw_namespace, 'mem_used_percent', 'GreaterThanThreshold', default_period,
-                     default_evaluation_periods, default_statistic,
-                     'Created_by_CloudWatchAutoAlarms']),
-                'Value': alarm_memory_high_default_threshold
-            }
-        ],
-        'Ubuntu': [
-            {
-                'Key': alarm_separator.join(
-                    [alarm_identifier, cw_namespace, 'disk_used_percent', 'device', 'xvda1', 'fstype', 'ext4', 'path',
-                     '/', 'GreaterThanThreshold', default_period, default_evaluation_periods, default_statistic,
-                     'Created_by_CloudWatchAutoAlarms']),
-                'Value': alarm_disk_used_percent_threshold
-            },
-            {
-                'Key': alarm_separator.join(
-                    [alarm_identifier, cw_namespace, 'mem_used_percent', 'GreaterThanThreshold', default_period,
-                     default_evaluation_periods, default_statistic,
-                     'Created_by_CloudWatchAutoAlarms']),
-                'Value': alarm_memory_high_default_threshold
-            }
-        ],
-        'SUSE': [
-            {
-                'Key': alarm_separator.join(
-                    [alarm_identifier, cw_namespace, 'disk_used_percent', 'device', 'xvda1', 'fstype', 'xfs', 'path',
-                     '/', 'GreaterThanThreshold', default_period, default_evaluation_periods, default_statistic,
-                     'Created_by_CloudWatchAutoAlarms']),
-                'Value': alarm_disk_used_percent_threshold
-            },
-            {
-                'Key': alarm_separator.join(
-                    [alarm_identifier, cw_namespace, 'mem_used_percent', 'GreaterThanThreshold', default_period,
-                     default_evaluation_periods, default_statistic,
-                     'Created_by_CloudWatchAutoAlarms']),
-                'Value': alarm_memory_high_default_threshold
-            }
-        ]
-    }
-}
-
 metric_dimensions_map = {
     cw_namespace: append_dimensions,
     'AWS/EC2': ['InstanceId']
@@ -174,6 +47,132 @@ metric_dimensions_map = {
 
 
 def lambda_handler(event, context):
+    # For Redhat, the default device is xvda2, xfs, for Ubuntu, the default fstype is ext4,
+    # for Amazon Linux, the default device is xvda1, xfs
+    default_alarms = {
+        # default<number> added to the end of the key to  make the key unique
+        # this differentiate alarms with similar settings but different thresholds
+        'AWS/RDS': [
+            {
+                'Key': alarm_separator.join(
+                    [alarm_identifier, 'AWS/RDS', 'CPUUtilization', 'GreaterThanThreshold', default_period,
+                     default_evaluation_periods, default_statistic, 'Created_by_CloudWatchAutoAlarms']),
+                'Value': alarm_rds_cpu_high_default_threshold
+            }
+        ],
+        'AWS/EC2': [
+            {
+                'Key': alarm_separator.join(
+                    [alarm_identifier, 'AWS/EC2', 'CPUUtilization', 'GreaterThanThreshold', default_period,
+                     default_evaluation_periods, default_statistic, 'Created_by_CloudWatchAutoAlarms']),
+                'Value': alarm_cpu_high_default_threshold
+            },
+            # This is an example alarm using anomaly detection
+            # {
+            #     'Key': alarm_separator.join(
+            #         [alarm_identifier, 'AWS/EC2', 'CPUUtilization', 'GreaterThanUpperThreshold', default_period,
+            #          default_evaluation_periods, default_statistic, 'Created_by_CloudWatchAutoAlarms']),
+            #     'Value': alarm_cpu_high_anomaly_detection_default_threshold
+            # }
+        ],
+        'AWS/Lambda': [
+            {
+                'Key': alarm_separator.join(
+                    [alarm_identifier, 'AWS/Lambda', 'Errors', 'GreaterThanThreshold', default_period,
+                     default_evaluation_periods, default_statistic, 'Created_by_CloudWatchAutoAlarms']),
+                'Value': alarm_lambda_error_threshold
+            },
+            {
+                'Key': alarm_separator.join(
+                    [alarm_identifier, 'AWS/Lambda', 'Throttles', 'GreaterThanThreshold', default_period,
+                     default_evaluation_periods, default_statistic, 'Created_by_CloudWatchAutoAlarms']),
+                'Value': alarm_lambda_throttles_threshold
+            }
+        ],
+        cw_namespace: {
+            'Windows': [
+
+                {
+                    'Key': alarm_separator.join(
+                        [alarm_identifier, cw_namespace, 'LogicalDisk % Free Space', 'objectname', 'LogicalDisk',
+                         'instance', 'C:', 'LessThanThreshold', default_period, default_evaluation_periods,
+                         default_statistic, 'Created_by_CloudWatchAutoAlarms']),
+                    'Value': alarm_disk_space_percent_free_threshold
+                },
+                {
+                    'Key': alarm_separator.join(
+                        [alarm_identifier, cw_namespace, 'Memory % Committed Bytes In Use', 'objectname', 'Memory',
+                         'GreaterThanThreshold', default_period, default_evaluation_periods, default_statistic,
+                         'Created_by_CloudWatchAutoAlarms']),
+                    'Value': alarm_memory_high_default_threshold
+                }
+            ],
+            'Amazon Linux': [
+                {
+                    'Key': alarm_separator.join(
+                        [alarm_identifier, cw_namespace, 'disk_used_percent', 'device', 'nvme0n1p1', 'fstype', 'xfs', 'path',
+                         '/', 'GreaterThanThreshold', default_period, default_evaluation_periods, default_statistic,
+                         'Created_by_CloudWatchAutoAlarms']),
+                    'Value': alarm_disk_used_percent_threshold
+                },
+                {
+                    'Key': alarm_separator.join(
+                        [alarm_identifier, cw_namespace, 'mem_used_percent', 'GreaterThanThreshold', default_period,
+                         default_evaluation_periods, default_statistic,
+                         'Created_by_CloudWatchAutoAlarms']),
+                    'Value': alarm_memory_high_default_threshold
+                }
+            ],
+            'Red Hat': [
+                {
+                    'Key': alarm_separator.join(
+                        [alarm_identifier, cw_namespace, 'disk_used_percent', 'device', 'xvda2', 'fstype', 'xfs', 'path',
+                         '/', 'GreaterThanThreshold', default_period, default_evaluation_periods, default_statistic,
+                         'Created_by_CloudWatchAutoAlarms']),
+                    'Value': alarm_disk_used_percent_threshold
+                },
+                {
+                    'Key': alarm_separator.join(
+                        [alarm_identifier, cw_namespace, 'mem_used_percent', 'GreaterThanThreshold', default_period,
+                         default_evaluation_periods, default_statistic,
+                         'Created_by_CloudWatchAutoAlarms']),
+                    'Value': alarm_memory_high_default_threshold
+                }
+            ],
+            'Ubuntu': [
+                {
+                    'Key': alarm_separator.join(
+                        [alarm_identifier, cw_namespace, 'disk_used_percent', 'device', 'xvda1', 'fstype', 'ext4', 'path',
+                         '/', 'GreaterThanThreshold', default_period, default_evaluation_periods, default_statistic,
+                         'Created_by_CloudWatchAutoAlarms']),
+                    'Value': alarm_disk_used_percent_threshold
+                },
+                {
+                    'Key': alarm_separator.join(
+                        [alarm_identifier, cw_namespace, 'mem_used_percent', 'GreaterThanThreshold', default_period,
+                         default_evaluation_periods, default_statistic,
+                         'Created_by_CloudWatchAutoAlarms']),
+                    'Value': alarm_memory_high_default_threshold
+                }
+            ],
+            'SUSE': [
+                {
+                    'Key': alarm_separator.join(
+                        [alarm_identifier, cw_namespace, 'disk_used_percent', 'device', 'xvda1', 'fstype', 'xfs', 'path',
+                         '/', 'GreaterThanThreshold', default_period, default_evaluation_periods, default_statistic,
+                         'Created_by_CloudWatchAutoAlarms']),
+                    'Value': alarm_disk_used_percent_threshold
+                },
+                {
+                    'Key': alarm_separator.join(
+                        [alarm_identifier, cw_namespace, 'mem_used_percent', 'GreaterThanThreshold', default_period,
+                         default_evaluation_periods, default_statistic,
+                         'Created_by_CloudWatchAutoAlarms']),
+                    'Value': alarm_memory_high_default_threshold
+                }
+            ]
+        }
+    }
     logger.info('event received: {}'.format(event))
     try:
         if 'source' in event and event['source'] == 'aws.ec2' and event['detail']['state'] == 'running':
@@ -189,7 +188,9 @@ def lambda_handler(event, context):
                     target_sns_topic_arn = instance_sns_target[0]
                 else:
                     target_sns_topic_arn = sns_topic_arn
-                process_alarm_tags(instance_id, instance_info, default_alarms, metric_dimensions_map,
+
+                default_filtered_alarms, wildcard_alarms = separate_wildcard_alarms(alarm_separator, cw_namespace, default_alarms)
+                process_alarm_tags(instance_id, instance_info, default_filtered_alarms, wildcard_alarms, metric_dimensions_map,
                                    target_sns_topic_arn,
                                    cw_namespace, create_default_alarms_flag, alarm_separator, alarm_identifier)
         elif 'source' in event and event['source'] == 'aws.ec2' and event['detail']['state'] == 'terminated':
