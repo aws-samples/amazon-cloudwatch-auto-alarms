@@ -198,7 +198,7 @@ You can add any standard Amazon CloudWatch metric for Amazon EC2 or AWS Lambda i
 
 The solution allows you to specify a wildcard for a dimension value in order to create CloudWatch alarms for all dimension values.  This is particularly useful for creating alarms for all partitions and drives on a system or where the value of a dimension is not known or can vary across EC2 instances.
 
-For example, the CloudWatch agent publishes the `disk_used_percent` metric for disks attached to an EC2 instance.  The dimensions for this metric for Amazon Linux are `device name`, `fstype`, and `path`.
+For example, the CloudWatch agent publishes the `disk_used_percent` metric for disks attached to a Linux EC2 instance.  The dimensions for this metric for Amazon Linux are `device name`, `fstype`, and `path`.
 
 The alarm tag for this metric is hardcoded in the `default_alarms` python dictionary in `cw_auto_alarms.py` to create an alarm for the root volume whose default dimensions and values are: 
 
@@ -248,7 +248,7 @@ If your EC2 instance had two disks with the following dimensions:
 
 Then two alarms would be created using a `*` wildcard for the `device` and `path` dimensions:
 * AutoAlarm-\<InstanceId>-CWAgent-disk_used_percent-device-xvda1-fstype-xfs-path-/-GreaterThanThreshold-80-5m-1p-Average-Created_by_CloudWatchAutoAlarms
-* AutoAlarm-\<InstanceId>-CWAgent-disk_used_percent-device-nvme1n1-fstype-xfs-path-/drive2-GreaterThanThreshold-80-5m-1p-Average-Created_by_CloudWatchAutoAlarms
+* AutoAlarm-\<InstanceId>-CWAgent-disk_used_percent-device-nvme1n1p1-fstype-xfs-path-/disk2-GreaterThanThreshold-80-5m-1p-Average-Created_by_CloudWatchAutoAlarms
 
 
 In order to identify the dimension values, the solution queries CloudWatch metrics to identify all metrics that match the fixed dimension values for the metric name specified.  It then iterates through the dimensions whose values are specified as a wildcard to identify the specific dimension values required for the alarm. 
