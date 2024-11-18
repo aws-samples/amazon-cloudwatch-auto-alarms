@@ -75,20 +75,21 @@ The following list provides a description of the setting along with the environm
 
 You can update the thresholds for the default alarms by updating the following environment variables:
 
-   **For Anomaly Detection Alarms**:
-    * **ALARM_DEFAULT_ANOMALY_THRESHOLD**: 2
-   **For Amazon EC2**:
-    * **ALARM_CPU_HIGH_THRESHOLD**: 75
-    * **ALARM_CPU_CREDIT_BALANCE_LOW_THRESHOLD**: 100
-    * **ALARM_MEMORY_HIGH_THRESHOLD**: 75
-    * **ALARM_DISK_PERCENT_LOW_THRESHOLD**: 20
+**For Anomaly Detection Alarms**:
+* **ALARM_DEFAULT_ANOMALY_THRESHOLD**: 2
 
-   **For AWS RDS**:
-    * **ALARM_RDS_CPU_HIGH_THRESHOLD**: 75
+**For Amazon EC2**:
+* **ALARM_CPU_HIGH_THRESHOLD**: 75
+* **ALARM_CPU_CREDIT_BALANCE_LOW_THRESHOLD**: 100
+* **ALARM_MEMORY_HIGH_THRESHOLD**: 75
+* **ALARM_DISK_PERCENT_LOW_THRESHOLD**: 20
 
-   **For AWS Lambda**:
-    * **ALARM_LAMBDA_ERROR_THRESHOLD**: 0
-    * **ALARM_LAMBDA_THROTTLE_THRESHOLD**: 0
+**For AWS RDS**:
+* **ALARM_RDS_CPU_HIGH_THRESHOLD**: 75
+
+**For AWS Lambda**:
+* **ALARM_LAMBDA_ERROR_THRESHOLD**: 0
+* **ALARM_LAMBDA_THROTTLE_THRESHOLD**: 0
 
 # Deployment
 AWS Organizations support is required for multi-account with a single AWS Lambda Function deployment.
