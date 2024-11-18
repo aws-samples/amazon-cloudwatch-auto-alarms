@@ -1,0 +1,154 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: CloudFormation template for CloudWatch Auto Alarms with EC2, Lambda, and RDS event rules.
+
+Parameters:
+  EventState:
+    Description: State of the CloudWatch event rules (ENABLED or DISABLED).
+    Type: String
+    Default: ENABLED
+    AllowedValues:
+      - ENABLED
+      - DISABLED
+
+  CloudWatchAutoAlarmsArn:
+    Description: The ARN of the CloudWatchAutoAlarms Lambda function.
+    Type: String
+
+  CloudWatchAutoAlarmsEventBusArn:
+    Description: The ARN of the AWS Event Bus where CloudWatchAutoAlarms is deployed.
+    Type: String
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "CloudWatch Event Configuration"
+        Parameters:
+          - EventState
+          - CloudWatchAutoAlarmsEventBusArn
+      - Label:
+          default: "CloudWatch Auto Alarms Lambda Info"
+        Parameters:
+          - CloudWatchAutoAlarmsArn
+    ParameterLabels:
+      EventState:
+        default: "CloudWatch Event State"
+      CloudWatchAutoAlarmsFunctionArn:
+        default: "CloudWatchAutoAlarms Lambda Function ARN"
+      CloudWatchAutoAlarmsEventBusArn:
+        default: "Event Bus ARN where CloudWatchAutoAlarms Lambda Function is deployed"
+
+
+Resources:
+  EventBridgePutEventsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: "events.amazonaws.com"
+            Action: "sts:AssumeRole"
+      Policies:
+        - PolicyName: "PutEventsToCloudWatchAutoAlarmsBEventBus"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: "events:PutEvents"
+                Resource: !Ref CloudWatchAutoAlarmsEventBusArn
+
+  CloudWatchAutoAlarmCloudwatchEventLambda:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: Initiate-CloudWatchAutoAlarmsLambda
+      Description: Creates and deletes CloudWatch alarms for lambda functions with the CloudWatchAutoAlarms activation tag.
+      EventPattern:
+        {
+          "source": [
+            "aws.lambda"
+          ],
+          "detail-type": [
+            "AWS API Call via CloudTrail"
+          ],
+          "detail": {
+            "eventSource": [
+              "lambda.amazonaws.com"
+            ],
+            "eventName": [
+              "TagResource20170331v2",
+              "DeleteFunction20150331"
+            ]
+          }
+        }
+      State: !Ref EventState
+      Targets:
+        - Arn: !Ref CloudWatchAutoAlarmsEventBusArn
+          RoleArn: !GetAtt EventBridgePutEventsRole.Arn
+          Id: TargetCloudWatchAutoAlarms
+
+
+
+  CloudWatchAutoAlarmCloudwatchEventEC2:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: Initiate-CloudWatchAutoAlarmsEC2
+      Description: Creates CloudWatch alarms on instance start via Lambda CloudWatchAutoAlarms and deletes them on instance termination.
+      EventPattern:
+        {
+          "source": [
+            "aws.ec2"
+          ],
+          "detail-type": [
+            "EC2 Instance State-change Notification"
+          ],
+          "detail": {
+            "state": [
+              "running",
+              "terminated"
+            ]
+          }
+        }
+      State: !Ref EventState
+      Targets:
+        - Arn: !Ref CloudWatchAutoAlarmsEventBusArn
+          RoleArn: !GetAtt EventBridgePutEventsRole.Arn
+          Id: TargetCloudWatchAutoAlarms
+
+  CloudWatchAutoAlarmCloudwatchEventRDSCreate:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: Initiate-CloudWatchAutoAlarmsRDSCreate
+      Description: Creates CloudWatch alarms for RDS instances with CloudWatchAutoAlarms activation tag.
+      EventPattern:
+        {
+          "detail-type": ["AWS API Call via CloudTrail"],
+          "detail": {
+            "eventSource": ["rds.amazonaws.com"],
+            "eventName": ["AddTagsToResource"]
+          }
+        }
+      State: !Ref EventState
+      Targets:
+        - Arn: !Ref CloudWatchAutoAlarmsEventBusArn
+          RoleArn: !GetAtt EventBridgePutEventsRole.Arn
+          Id: TargetCloudWatchAutoAlarms
+
+  CloudWatchAutoAlarmCloudwatchEventRDSDelete:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: Initiate-CloudWatchAutoAlarmsRDSDelete
+      Description: Deletes CloudWatch alarms for corresponding RDS instance is deleted.
+      EventPattern:
+        {
+          "source": ["aws.rds"],
+          "detail": {
+            "EventCategories": ["creation", "deletion"]
+          }
+        }
+      State: !Ref EventState
+      Targets:
+        - Arn: !Ref CloudWatchAutoAlarmsEventBusArn
+          RoleArn: !GetAtt EventBridgePutEventsRole.Arn
+          Id: TargetCloudWatchAutoAlarms

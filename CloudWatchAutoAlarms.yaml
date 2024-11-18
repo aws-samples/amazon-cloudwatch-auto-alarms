@@ -4,32 +4,133 @@ Parameters:
   Memory:
     Description: Memory to allocate to Lambda function
     Type: Number
-    Default:  128
+    Default: 128
     MinValue: 128
     MaxValue: 3008
+    AllowedValues:
+      - 128
+      - 256
+      - 512
+      - 1024
+      - 2048
+      - 3008
   EventState:
-    Description: Create Cloudwatch event to trigger execution on instance start / terminate.
+    Description: Create CloudWatch event to trigger execution on instance start/terminate.
     Type: String
     Default: ENABLED
+    AllowedValues:
+      - ENABLED
+      - DISABLED
   S3DeploymentBucket:
-    Description: Enter the Amazon S3 bucket name that contains the AWS Lambda deployment package
+    Description: Enter the Amazon S3 bucket name that contains the AWS Lambda deployment package.
     Type: String
   S3DeploymentKey:
-    Description: Enter the Amazon S3 key name for your AWS Lambda deployment package
+    Description: Enter the Amazon S3 key name for your AWS Lambda deployment package.
     Type: String
-    Default:  amazon-cloudwatch-auto-alarms.zip
-  AlarmNotificationARN:
-    Description: Enter the Amazon SNS Notification ARN for alarm notifications, leave blank to disable notifications.
+    Default: amazon-cloudwatch-auto-alarms.zip
+  EnableNotifications:
+    Description: Enable SNS notifications for alarms (true/false).
     Type: String
-    Default: ""
+    Default: "true"
+    AllowedValues:
+      - "true"
+      - "false"
+  SNSTopicName:
+    Description: Enter the name of the SNS topic used for alarm notifications. You should have a separate topic with the same name for each region in a multi-region deployment.
+    Type: String
+    Default: CloudWatchAutoAlarmsSNSTopic
+  SNSTopicAccount:
+    Description: Enter the AWS Account ID where the SNS topic was created.
+    Type: String
   AlarmIdentifierPrefix:
-    Description: Enter the prefix that should be added to the beginning of each alarm created by the solution, (e.g. AutoAlarm-i-00e4f327736cb077f-CPUUtilization-GreaterThanThreshold-80-5m)
+    Description: Enter the prefix that should be added to the beginning of each alarm created by the solution.
     Type: String
     Default: AutoAlarm
+  TargetRegions:
+    Description: A list of the target AWS regions to support, leave blank to only include this region where the stack is being deployed
+    Type: String
+    Default: ""
+  OrganizationManagementAccount:
+    Description: Your AWS Organization Management Account ID
+    Type: String
+    Default: ""
+  TargetOrganizationId:
+    Description: Your AWS Organization ID (e.g., o-xxxxx).
+    Type: String
+    Default: ""
+  TargetOrganizationalUnits:
+    Description: Comma-separated list of AWS Organizational Unit (OU) IDs. Leave blank if not performing a multi-account AWS Organizations deployment.
+    Type: String
+    Default: ""
 
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "Lambda Function Settings"
+        Parameters:
+          - Memory
+          - EventState
+      - Label:
+          default: "S3 Deployment Settings"
+        Parameters:
+          - S3DeploymentBucket
+          - S3DeploymentKey
+      - Label:
+          default: "Alarm Settings"
+        Parameters:
+          - EnableNotifications
+          - SNSTopicName
+          - SNSTopicAccount
+          - AlarmIdentifierPrefix
+      - Label:
+          default: "Deployment Configuration"
+        Parameters:
+          - TargetRegions
+          - OrganizationManagementAccount
+          - TargetOrganizationId
+          - TargetOrganizationalUnits
+    ParameterLabels:
+      EnableNotifications:
+        default: "Enable Notifications"
+      SNSTopicName:
+        default: "SNS Topic Name"
+      SNSTopicAccount:
+        default: "SNS Topic Account"
+      TargetRegions:
+        default: "Target Regions - leave blank for this region only"
+      OrganizationManagementAccount:
+        default: "AWS Organization Management Account ID"
+      TargetOrganizationId:
+        default: "Target Organization ID"
+      TargetOrganizationalUnits:
+        default: "Target Organizational Units"
 
+Conditions:
+  AWSOrganizationsDeployment:
+    Fn::And:
+      - Fn::Not:
+          - Fn::Equals:
+              - !Ref TargetOrganizationId
+              - ""
+      - Fn::Not:
+          - Fn::Equals:
+              - !Ref TargetOrganizationId
+              - ""
+  SingleAccountDeployment:
+    Fn::Not:
+      - Condition: AWSOrganizationsDeployment
+  EnableSNSNotifications:
+    Fn::Equals:
+      - !Ref EnableNotifications
+      - "true"
+  TargetRegionsSpecified:
+    !Not
+    - !Equals
+      - !Ref TargetRegions
+      - ""
 Resources:
-  LambdaFunction:
+  CloudWatchAutoAlarmsLambdaFunction:
     Type: AWS::Lambda::Function
     Properties:
       FunctionName: "CloudWatchAutoAlarms"
@@ -45,6 +146,7 @@ Resources:
         Variables:
           ALARM_TAG: Create_Auto_Alarms
           CREATE_DEFAULT_ALARMS: true
+          LOCAL_ACCOUNT_ID: !Ref AWS::AccountId
           CLOUDWATCH_NAMESPACE: CWAgent
           ALARM_CPU_HIGH_THRESHOLD: 75
           ALARM_DEFAULT_ANOMALY_THRESHOLD: 2
@@ -53,15 +155,35 @@ Resources:
           ALARM_DISK_PERCENT_LOW_THRESHOLD: 20
           ALARM_IDENTIFIER_PREFIX: !Ref AlarmIdentifierPrefix
           CLOUDWATCH_APPEND_DIMENSIONS: 'InstanceId, ImageId, InstanceType'
-
           ALARM_LAMBDA_ERROR_THRESHOLD: 0
           ALARM_LAMBDA_THROTTLE_THRESHOLD: 0
+          TARGET_REGIONS: !If
+            - TargetRegionsSpecified
+            - !Ref TargetRegions
+            - !Ref "AWS::Region"
+          SNS_TOPIC_NAME: !If
+            - EnableSNSNotifications
+            - !Ref SNSTopicName
+            - !Ref "AWS::NoValue"
+          SNS_TOPIC_ACCOUNT: !If
+            - EnableSNSNotifications
+            - !Ref SNSTopicAccount
+            - !Ref "AWS::NoValue"
+          ORG_MGMT_ACCOUNT: !If
+            - AWSOrganizationsDeployment
+            - !Ref OrganizationManagementAccount
+            - !Ref "AWS::NoValue"
+          TARGET_ORG_UNITS: !If
+            - AWSOrganizationsDeployment
+            - !Ref TargetOrganizationalUnits
+            - !Ref "AWS::NoValue"
 
-          DEFAULT_ALARM_SNS_TOPIC_ARN: !Ref AlarmNotificationARN
+
 
   CloudWatchAutoAlarmLambdaRole:
     Type: AWS::IAM::Role
     Properties:
+      RoleName: "CloudWatchAutoAlarmsRole"
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -79,7 +201,6 @@ Resources:
             Statement:
               - Effect: Allow
                 Action:
-                  - cloudwatch:PutMetricData
                   - cloudwatch:ListMetrics
                 Resource: "*"
               - Effect: Allow
@@ -116,18 +237,89 @@ Resources:
                 Action:
                   - cloudwatch:DescribeAlarms
                 Resource: "*"
+              - Effect: Allow
+                Action:
+                  - sts:AssumeRole
+                Resource: !Sub "arn:${AWS::Partition}:iam::*:role/CloudWatchAutoAlarmCrossAccountRole"
+                Condition:
+                  StringEquals:
+                    aws:PrincipalOrgID: !Ref TargetOrganizationId
+              - Effect: Allow
+                Action:
+                  - sts:AssumeRole
+                Resource: !Sub "arn:${AWS::Partition}:iam::${OrganizationManagementAccount}:role/CloudWatchAutoAlarmManagementAccountRole"
+
+
+  CloudWatchAutoAlarmsOrgEventBusPolicy:
+    Type: AWS::Events::EventBusPolicy
+    Condition: AWSOrganizationsDeployment
+    Properties:
+      StatementId: "AllowOrgAccountsToPutEvents"
+      Action: "events:PutEvents"
+      Principal: "*"
+      EventBusName: "default"
+      Condition:
+        Key: "aws:PrincipalOrgID"
+        Type: "StringEquals"
+        Value: !Ref TargetOrganizationId
+
 
   LambdaInvokePermissionCloudwatchEventsEC2:
     Type: AWS::Lambda::Permission
     Properties:
       FunctionName: !GetAtt
-        - LambdaFunction
+        - CloudWatchAutoAlarmsLambdaFunction
         - Arn
       Action: 'lambda:InvokeFunction'
       Principal: events.amazonaws.com
       SourceArn: !GetAtt
         - CloudWatchAutoAlarmCloudwatchEventEC2
         - Arn
+
+  LambdaInvokePermissionCloudwatchEventsLambda:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt
+        - CloudWatchAutoAlarmsLambdaFunction
+        - Arn
+      Action: 'lambda:InvokeFunction'
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt CloudWatchAutoAlarmCloudwatchEventLambda.Arn
+
+  LambdaInvokePermissionCloudwatchEventsRDSCreate:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt
+        - CloudWatchAutoAlarmsLambdaFunction
+        - Arn
+      Action: 'lambda:InvokeFunction'
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt
+        - CloudWatchAutoAlarmCloudwatchEventRDSCreate
+        - Arn
+
+  LambdaInvokePermissionCloudwatchEventsRDSDelete:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt
+        - CloudWatchAutoAlarmsLambdaFunction
+        - Arn
+      Action: 'lambda:InvokeFunction'
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt
+        - CloudWatchAutoAlarmCloudwatchEventRDSDelete
+        - Arn
+
+  CloudWatchAutoAlarmPermissionForEventsToInvokeLambda:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref CloudWatchAutoAlarmsLambdaFunction
+      Action: "lambda:InvokeFunction"
+      Principal: "events.amazonaws.com"
+      SourceArn:
+        Fn::GetAtt:
+          - "CloudWatchAutoAlarmScheduledRule"
+          - "Arn"
 
   CloudWatchAutoAlarmCloudwatchEventEC2:
     Type: AWS::Events::Rule
@@ -151,7 +343,7 @@ Resources:
         }'
       State: !Ref EventState
       Targets:
-        - Arn: !GetAtt LambdaFunction.Arn
+        - Arn: !GetAtt CloudWatchAutoAlarmsLambdaFunction.Arn
           Id: LATEST
 
   CloudWatchAutoAlarmScheduledRule:
@@ -161,24 +353,13 @@ Resources:
       ScheduleExpression: "rate(1 day)"
       State: "ENABLED"
       Targets:
-        - Arn: !GetAtt LambdaFunction.Arn
+        - Arn: !GetAtt CloudWatchAutoAlarmsLambdaFunction.Arn
           Id: LATEST
           Input: '
           {
           "action": "scan"
           }
           '
-
-  CloudWatchAutoAlarmPermissionForEventsToInvokeLambda:
-    Type: AWS::Lambda::Permission
-    Properties:
-      FunctionName: !Ref "LambdaFunction"
-      Action: "lambda:InvokeFunction"
-      Principal: "events.amazonaws.com"
-      SourceArn:
-        Fn::GetAtt:
-          - "CloudWatchAutoAlarmScheduledRule"
-          - "Arn"
 
   CloudWatchAutoAlarmCloudwatchEventLambda:
     Type: AWS::Events::Rule
@@ -206,7 +387,7 @@ Resources:
         '
       State: !Ref EventState
       Targets:
-        - Arn: !GetAtt LambdaFunction.Arn
+        - Arn: !GetAtt CloudWatchAutoAlarmsLambdaFunction.Arn
           Id: LATEST
 
   CloudWatchAutoAlarmCloudwatchEventRDSCreate:
@@ -225,7 +406,7 @@ Resources:
         '
       State: !Ref EventState
       Targets:
-        - Arn: !GetAtt LambdaFunction.Arn
+        - Arn: !GetAtt CloudWatchAutoAlarmsLambdaFunction.Arn
           Id: LATEST
 
   CloudWatchAutoAlarmCloudwatchEventRDSDelete:
@@ -243,42 +424,18 @@ Resources:
         '
       State: !Ref EventState
       Targets:
-        - Arn: !GetAtt LambdaFunction.Arn
+        - Arn: !GetAtt CloudWatchAutoAlarmsLambdaFunction.Arn
           Id: LATEST
 
+Outputs:
+  CloudWatchAutoAlarmLambdaRoleArn:
+    Description: The ARN of the IAM Role for the CloudWatch Auto Alarms Lambda Function
+    Value: !GetAtt CloudWatchAutoAlarmLambdaRole.Arn
+    Export:
+      Name: "cloudwatch-auto-alarms-execution-role-arn"
 
-  LambdaInvokePermissionCloudwatchEventsLambda:
-    Type: AWS::Lambda::Permission
-    Properties:
-      FunctionName: !GetAtt
-        - LambdaFunction
-        - Arn
-      Action: 'lambda:InvokeFunction'
-      Principal: events.amazonaws.com
-      SourceArn: !GetAtt
-        - CloudWatchAutoAlarmCloudwatchEventLambda
-        - Arn
-
-  LambdaInvokePermissionCloudwatchEventsRDSCreate:
-    Type: AWS::Lambda::Permission
-    Properties:
-      FunctionName: !GetAtt
-        - LambdaFunction
-        - Arn
-      Action: 'lambda:InvokeFunction'
-      Principal: events.amazonaws.com
-      SourceArn: !GetAtt
-        - CloudWatchAutoAlarmCloudwatchEventRDSCreate
-        - Arn
-
-  LambdaInvokePermissionCloudwatchEventsRDSDelete:
-    Type: AWS::Lambda::Permission
-    Properties:
-      FunctionName: !GetAtt
-        - LambdaFunction
-        - Arn
-      Action: 'lambda:InvokeFunction'
-      Principal: events.amazonaws.com
-      SourceArn: !GetAtt
-        - CloudWatchAutoAlarmCloudwatchEventRDSDelete
-        - Arn
+  CloudWatchAutoAlarmsLambdaFunctionArn:
+    Description: The ARN of the Lambda Function for CloudWatch Auto Alarms
+    Value: !GetAtt CloudWatchAutoAlarmsLambdaFunction.Arn
+    Export:
+      Name: "cloudwatch-auto-alarms-lambda-function-arn"
