@@ -348,9 +348,9 @@ Now that the deployment package has been uploaded, proceed to the next step to d
 - **Lambda Function Activation**:
     - The function `CloudWatchAutoAlarms` will automatically create alarms based on configured parameters.
 
-# Required Steps for Multi-Account Support with AWS Organizations 
+## Required Steps for Multi-Account Support with AWS Organizations 
 
-## Deploy Event Rules and Event Routing To Target AWS Organizational Units - [CloudWatchAutoAlarms-CrossAccountEvents.yaml](CloudWatchAutoAlarms-CrossAccountEvents.yaml)
+### Deploy Event Rules and Event Routing To Target AWS Organizational Units - [CloudWatchAutoAlarms-CrossAccountEvents.yaml](CloudWatchAutoAlarms-CrossAccountEvents.yaml)
 
 ### Prerequisites:
 1. **Management or Delegated Administrator Account**:
@@ -436,11 +436,8 @@ Now that the deployment package has been uploaded, proceed to the next step to d
 - **EventBus Role**: The StackSet creates roles and permissions for EventBridge to allow cross-account event routing for managing CloudWatch alarms.
 - **Updating StackSet**: If you need to modify the template or parameters, update the StackSet from the console.
 
-With these steps, the CloudWatchAutoAlarms solution will be set up to support multi-account and multi-region alarm configurations automatically.
 
-###
-
-## Deploy Cross-Account IAM Role for Alarm Management - [CloudWatchAutoAlarms-CrossAccountRole.yaml](CloudWatchAutoAlarms-CrossAccountRole.yaml)
+### Deploy Cross-Account IAM Role for Alarm Management - [CloudWatchAutoAlarms-CrossAccountRole.yaml](CloudWatchAutoAlarms-CrossAccountRole.yaml)
 
 ### Overview
 This step involves deploying a CloudFormation template to create a cross-account IAM role. This role is used by the **CloudWatchAutoAlarms AWS Lambda Function** to manage alarms across accounts within AWS Organizations. The deployment is restricted to one AWS region per target account because IAM roles are global resources.
@@ -516,13 +513,13 @@ This step involves deploying a CloudFormation template to create a cross-account
 - **Role Usage**: This role is assumed by the CloudWatchAutoAlarms Lambda function to manage alarms for EC2, RDS, and Lambda resources.
 - **Service-Managed Updates**: The StackSet automatically includes new accounts added to the specified OUs.
 
-## Deploy AWS Organizations Management Account Role To Read AWS Organization Account List - [CloudWatchAutoAlarms-ManagementAccountRole.yaml](CloudWatchAutoAlarms-ManagementAccountRole.yaml)
+### Deploy AWS Organizations Management Account Role To Read AWS Organization Account List - [CloudWatchAutoAlarms-ManagementAccountRole.yaml](CloudWatchAutoAlarms-ManagementAccountRole.yaml)
 
 This role is required to enable the **CloudWatchAutoAlarms** AWS Lambda function to retrieve the list of AWS accounts under your AWS Organization. The role must be deployed in the **AWS Organizations Management Account**.
 
 ---
 
-## Deployment
+### Deployment
 
 ### 1. Log In to the AWS Organizations Management Account
 1. Open your web browser and log in to your [AWS Management Console](https://aws.amazon.com/console/).
@@ -574,7 +571,7 @@ This role is required to enable the **CloudWatchAutoAlarms** AWS Lambda function
 
 ---
 
-## Notes
+### Notes
 - **Role Purpose**: This role allows the Lambda function to call the AWS Organizations API to list all accounts and their parent OUs within the organization.
 - **Named Role**: The role is named `CloudWatchAutoAlarmManagementAccountRole` and is a global IAM resource, meaning it does not need to be deployed to multiple regions.
 - **Multi-Account Support**: Deploying this role ensures seamless integration of the **CloudWatchAutoAlarms Lambda function** with your AWS Organization, enabling it to target accounts dynamically.
