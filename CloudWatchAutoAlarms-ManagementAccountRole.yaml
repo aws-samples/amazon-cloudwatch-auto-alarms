@@ -1,0 +1,50 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: IAM Role for assuming management account role to get active accounts by organizational unit.
+
+Parameters:
+  CloudWatchAutoAlarmsAccountId:
+    Description: The AWS Account ID where the CloudWatchAutoAlarms AWS Lambda function is deployed.
+    Type: String
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "CloudWatchAutoAlarms Configuration"
+        Parameters:
+          - CloudWatchAutoAlarmsAccountId
+    ParameterLabels:
+      CloudWatchAutoAlarmsAccountId:
+        default: "CloudWatchAutoAlarms Account ID"
+
+Resources:
+  CloudWatchAutoAlarmManagementAccountRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: CloudWatchAutoAlarmManagementAccountRole
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS:
+                - !Sub "arn:${AWS::Partition}:iam::${CloudWatchAutoAlarmsAccountId}:role/CloudWatchAutoAlarmsRole"
+                - !Sub "arn:${AWS::Partition}:sts::${CloudWatchAutoAlarmsAccountId}:assumed-role/CloudWatchAutoAlarmsRole/CloudWatchAutoAlarms"
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: OrganizationsAccessPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - organizations:ListAccountsForParent
+                  - organizations:ListAccounts
+                Resource: '*'
+
+Outputs:
+  CloudWatchAutoAlarmManagementAccountRoleArn:
+    Description: ARN of the IAM Role for CloudWatch Auto Alarms.
+    Value: !GetAtt CloudWatchAutoAlarmManagementAccountRole.Arn
+    Export:
+      Name: CloudWatchAutoAlarmManagementAccountRoleArn

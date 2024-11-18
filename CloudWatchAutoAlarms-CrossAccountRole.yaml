@@ -1,0 +1,75 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Cross-Account role for CloudWatchAutoAlarms AWS Lambda Function
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "CloudWatchAutoAlarms Configuration"
+        Parameters:
+          - AlarmIdentifierPrefix
+          - CloudWatchAutoAlarmsAccount
+    ParameterLabels:
+      AlarmIdentifierPrefix:
+        default: "Alarm Identifier Prefix"
+      CloudWatchAutoAlarmsAccount:
+        default: "CloudWatch Auto Alarms Account ID"
+
+Parameters:
+  AlarmIdentifierPrefix:
+    Type: String
+    Description: "Prefix for CloudWatch Alarm Identifiers"
+    Default: "AutoAlarm"
+  CloudWatchAutoAlarmsAccount:
+    Type: String
+    Description: "The account where the CloudWatch Auto Alarms function is deployed"
+
+Resources:
+  CloudWatchAutoAlarmCrossAccountRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: "CloudWatchAutoAlarmCrossAccountRole"
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS:
+               - !Sub "arn:${AWS::Partition}:iam::${CloudWatchAutoAlarmsAccount}:role/CloudWatchAutoAlarmsRole"
+               - !Sub "arn:${AWS::Partition}:sts::${CloudWatchAutoAlarmsAccount}:assumed-role/CloudWatchAutoAlarmsRole/CloudWatchAutoAlarms"
+
+            Action:
+              - sts:AssumeRole
+      Path: "/"
+      Policies:
+        - PolicyName: "CloudWatchAutoAlarmsPermissions"
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - cloudwatch:ListMetrics
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - rds:ListTagsForResource
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - ec2:DescribeInstances
+                  - ec2:DescribeImages
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - ec2:CreateTags
+                Resource: !Sub "arn:${AWS::Partition}:ec2:*:${AWS::AccountId}:instance/*"
+              - Effect: Allow
+                Action:
+                  - cloudwatch:DescribeAlarms
+                  - cloudwatch:DeleteAlarms
+                  - cloudwatch:PutMetricAlarm
+                Resource: !Sub "arn:${AWS::Partition}:cloudwatch:*:${AWS::AccountId}:alarm:${AlarmIdentifierPrefix}-*"
+              - Effect: Allow
+                Action:
+                  - cloudwatch:DescribeAlarms
+                Resource: "*"
