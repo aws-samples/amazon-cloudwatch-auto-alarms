@@ -348,7 +348,9 @@ Now that the deployment package has been uploaded, proceed to the next step to d
 - **Lambda Function Activation**:
     - The function `CloudWatchAutoAlarms` will automatically create alarms based on configured parameters.
 
-## Required Steps for Multi-Account Support with AWS Organizations 
+## Multi-Account Support with AWS Organizations 
+
+To enable multi-account support with AWS Organizations, several CloudFormation templates must be deployed to set up cross-account event routing, IAM roles, and AWS Organizations integration. These steps ensure the CloudWatchAutoAlarms AWS Lambda function can manage alarms across multiple AWS accounts within your organization.
 
 ### Deploy Event Rules and Event Routing To Target AWS Organizational Units - [CloudWatchAutoAlarms-CrossAccountEvents.yaml](CloudWatchAutoAlarms-CrossAccountEvents.yaml)
 
