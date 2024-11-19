@@ -1,6 +1,6 @@
 # CloudWatchAutoAlarms - Automatically create a set of CloudWatch alarms with tagging
 
-![CloudWatchAutoAlarms Architecture Diagram](./CloudWatchAutoAlarmsArchitecture.png)
+![CloudWatchAutoAlarms-SingleAccount.png](CloudWatchAutoAlarms-SingleAccount.png)
 
 The CloudWatchAutoAlarms AWS Lambda function enables you to quickly and automatically create a standard set of CloudWatch alarms for your Amazon EC2 instances or AWS Lambda functions using tags.  It prevents errors that may occur by manually creating alarms, reduces the time required to deploy alarms, and reduces the skills gap required in order to create and manage alarms.  It can be especially useful during a large migration to AWS where many resources may be migrated into your AWS account at once.
 
@@ -349,6 +349,8 @@ Now that the deployment package has been uploaded, proceed to the next step to d
     - The function `CloudWatchAutoAlarms` will automatically create alarms based on configured parameters.
 
 ## Multi-Account Support with AWS Organizations 
+
+![CloudWatchAutoAlarms-AWSOrganizations.png](CloudWatchAutoAlarms-AWSOrganizations.png)
 
 To enable multi-account support with AWS Organizations, several CloudFormation templates must be deployed to set up cross-account event routing, IAM roles, and AWS Organizations integration. These steps ensure the CloudWatchAutoAlarms AWS Lambda function can manage alarms across multiple AWS accounts within your organization.
 
