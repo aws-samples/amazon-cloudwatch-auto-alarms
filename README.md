@@ -348,6 +348,83 @@ Now that the deployment package has been uploaded, proceed to the next step to d
 - **Lambda Function Activation**:
     - The function `CloudWatchAutoAlarms` will automatically create alarms based on configured parameters.
 
+## Multi-Region for Single Account Deployment
+You can support multiple regions with a single AWS CloudWatchAutoAlarms deployment.  You will need to deploy the Event Bus rules to trigger the CloudWatchAutoAlarms in **each** additional AWS region.  
+
+This is similar to the multi-account deployment process with AWS Organizations by routing events in other AWS regions to the default event bus in the region where the CloudWatchAutoAlarms AWS Lambda function is deployed.
+
+
+### Deploy Event Rules and Event Routing In Each additional AWS Region where CloudWatchAutoAlarms is deployed  [CloudWatchAutoAlarms-CrossAccountEvents.yaml](CloudWatchAutoAlarms-CrossAccountEvents.yaml)
+
+### Prerequisites:
+1. **Sign in to the Correct AWS Account and switch to the target AWS region**:
+   - Ensure you are signed in to the **AWS account** where the **CloudWatchAutoAlarms AWS Lambda function** is deployed.
+
+---
+
+### Steps for Deployment
+
+#### 1. Log in to the AWS Management Console:
+- Use the credentials for the **AWS account** where the **CloudWatchAutoAlarms AWS Lambda function** is deployed.
+
+---
+
+#### 2. Navigate to the CloudFormation Console:
+1. Open the [AWS CloudFormation console](https://console.aws.amazon.com/cloudformation/).
+2. In the left-hand menu, click **Stacks**.
+
+---
+
+#### 3. Create a New Stack:
+1. Click the **Create Stack** button and select **With new resources (standard)**.
+2. Select **Upload a template file** and click **Choose file**.
+3. Upload the provided **CloudWatchAutoAlarms-CrossAccountEvents.yaml** file.
+4. Click **Next**.
+
+---
+
+#### 4. Specify Stack Details:
+1. **Stack Name**: Enter a descriptive name, such as `cloudwatch-auto-alarms-events`.
+2. **Parameters**:
+   - Set the required parameters for your deployment:
+      - **EventState**: (Default: ENABLED)  
+        Choose whether CloudWatch Event rules are enabled or disabled.
+      - **CloudWatchAutoAlarmsArn**:  
+        Provide the ARN of the Lambda function for CloudWatchAutoAlarms deployed in the specified AWS account.  
+        Format:
+         ```
+         arn:aws:lambda:<region>:<account-id>:function:CloudWatchAutoAlarms
+         ```
+        Replace `<region>` and `<account-id>` with the AWS region and account ID where the CloudWatchAutoAlarms function was deployed.  You can also retrieve this value from the **Outputs** of the CloudWatchAutoAlarms CloudFormation stack, named **CloudWatchAutoAlarmsLambdaFunctionArn**.
+
+      - **CloudWatchAutoAlarmsEventBusArn**:  
+        Provide the ARN of the AWS Event Bus in the specified AWS account.  
+        Format:
+         ```
+         arn:aws:events:<region>:<account-id>:event-bus/default
+         ```
+        Replace `<region>` and `<account-id>` with the AWS region and account ID where the CloudWatchAutoAlarms function was deployed.
+3. Click **Next**.
+
+---
+
+#### 5. Configure Stack Options:
+1. Configure any additional options as needed (e.g., tags, permissions, and advanced settings).
+2. Click **Next**.
+
+---
+
+#### 6. Review and Deploy:
+1. Review the stack details and ensure all parameters are correctly set.
+2. Acknowledge the required capabilities by checking the boxes for **IAM role creation** or **resource management permissions**.
+3. Click **Create Stack**.
+
+---
+
+#### 7. Monitor the Deployment:
+1. After deployment starts, monitor the progress in the **Events** tab of the stack in the CloudFormation console.
+2. Wait until the status shows **CREATE_COMPLETE**.
+
 ## Multi-Account Support with AWS Organizations 
 
 ![CloudWatchAutoAlarms-AWSOrganizations.png](CloudWatchAutoAlarms-AWSOrganizations.png)
