@@ -56,8 +56,8 @@ Resources:
                 - !Ref CloudWatchAutoAlarmsSNSTopic
               Condition:
                 StringLike:
-                  aws:PrincipalOrgPaths:
-                    - !Sub "${TargetOrganizationId}/*"
+                  aws:SourceOrgID:
+                    - !Sub "${TargetOrganizationId}"
             - !Ref "AWS::NoValue"
 
 Outputs:
