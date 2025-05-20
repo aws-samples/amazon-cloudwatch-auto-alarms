@@ -755,7 +755,7 @@ def scan_and_process_alarm_tags(create_alarm_tag, default_alarms, metric_dimensi
                 if check_alarm_tag(instance["InstanceId"], create_alarm_tag, region, account_id):
                     process_alarm_tags(instance["InstanceId"], instance, default_filtered_alarms, wildcard_alarms,
                                        metric_dimensions_map, sns_topic_arn, cw_namespace, create_default_alarms_flag,
-                                       alarm_separator, alarm_identifier)
+                                       alarm_separator, alarm_identifier, region, account_id)
 
     except Exception as e:
         logger.error('Failure describing reservations: {}'.format(e))
