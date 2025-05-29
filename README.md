@@ -104,7 +104,7 @@ Follow the instructions below.  Specify the AWS Organization related parameters 
 
 ## Deploy the SNS topic for Alarm notifications  - [CloudWatchAutoAlarms-SNS.yaml](CloudWatchAutoAlarms-SNS.yaml) (Optional)
 
-The [CloudWatchAutoAlarms-Config-SNS.yaml](CloudWatchAutoAlarms-Config-SNS.yaml) stack creates an SNS topic for alarm notifications configured by the CloudWatchAutoAlarms Lambda function. It allows single-account or multi-account AWS Organizations support.
+The [CloudWatchAutoAlarms-SNS.yaml](CloudWatchAutoAlarms-SNS.yaml) stack creates an SNS topic for alarm notifications configured by the CloudWatchAutoAlarms Lambda function. It allows single-account or multi-account AWS Organizations support.
 
 #### Prerequisites
 1. Ensure you have appropriate AWS credentials with permissions to create resources in the target AWS account.
